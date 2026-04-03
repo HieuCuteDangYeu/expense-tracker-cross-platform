@@ -30,6 +30,7 @@ import {
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { supabase } from '../services/supabase';
 import { getTodayFormatted } from '../utils/dateUtils';
+import { mapExpenseToDB } from '../utils/mapper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -93,7 +94,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
     if (!validate()) return;
     setIsSubmitting(true);
     try {
-      await supabase.from('expenses').insert({
+      const payload: any = {
         parentProjectId: projectId,
         amount: parseFloat(form.amount),
         currency: form.currency || 'USD',
@@ -106,7 +107,11 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         location: form.location.trim() || null,
         receiptUrl: null,
         isDeleted: false,
-      });
+      };
+      
+      const dbPayload = mapExpenseToDB(payload);
+      
+      await supabase.from('expenses').insert(dbPayload);
       navigation.goBack();
     } catch {
       // Error handling placeholder

@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import type { Project } from '../types/project';
 import type { Expense } from '../types/expense';
+import { mapProjectFromDB, mapExpenseFromDB } from '../utils/mapper';
 
 export interface ProjectWithExpenses {
   project: Project;
@@ -33,18 +34,18 @@ export function useProjects() {
       const { data: projectsData, error: projError } = await supabase
         .from('projects')
         .select('*')
-        .eq('isDeleted', false)
-        .order('projectId', { ascending: false });
+        .order('id', { ascending: false });
 
       if (projError) throw projError;
 
       // Fetch all non-deleted expenses (matching ExpenseDao.getAllExpenses)
-      const { data: expensesData, error: expError } = await supabase
+      const { data: expensesDataRaw, error: expError } = await supabase
         .from('expenses')
-        .select('*')
-        .eq('isDeleted', false);
+        .select('*');
 
       if (expError) throw expError;
+
+      const expensesData = (expensesDataRaw || []).map(mapExpenseFromDB);
 
       // Group expenses by parentProjectId (matching ProjectWithExpenses relation)
       const expensesByProject = new Map<number, Expense[]>();
@@ -55,12 +56,13 @@ export function useProjects() {
       });
 
       // Build ProjectWithExpenses list
-      const result: ProjectWithExpenses[] = (projectsData || []).map(
-        (p: Project) => ({
+      const result: ProjectWithExpenses[] = (projectsData || []).map((row: any) => {
+        const p = mapProjectFromDB(row);
+        return {
           project: p,
           expenses: expensesByProject.get(p.projectId) || [],
-        })
-      );
+        };
+      });
 
       setProjects(result);
     } catch (err: any) {
@@ -91,8 +93,8 @@ export function useProjects() {
       try {
         const { error: delError } = await supabase
           .from('projects')
-          .update({ isDeleted: true })
-          .eq('projectId', projectId);
+          .delete()
+          .eq('id', projectId);
 
         if (delError) throw delError;
 

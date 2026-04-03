@@ -27,6 +27,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { supabase } from '../services/supabase';
 import { getTodayFormatted } from '../utils/dateUtils';
+import { mapProjectToDB } from '../utils/mapper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -107,10 +108,12 @@ export default function AddProjectScreen({ navigation, route }: Props) {
         isDeleted: false,
       };
 
+      const dbPayload = mapProjectToDB(payload);
+
       if (editProjectId) {
-        await supabase.from('projects').update(payload).eq('projectId', editProjectId);
+        await supabase.from('projects').update(dbPayload).eq('id', editProjectId);
       } else {
-        await supabase.from('projects').insert(payload);
+        await supabase.from('projects').insert(dbPayload);
       }
       navigation.goBack();
     } catch {

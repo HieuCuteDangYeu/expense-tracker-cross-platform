@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import type { Expense } from '../types/expense';
 import type { Project } from '../types/project';
+import { mapExpenseFromDB, mapExpenseToDB, mapProjectFromDB } from '../utils/mapper';
 
 export function useExpenses(projectId?: number) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -34,22 +35,21 @@ export function useExpenses(projectId?: number) {
       const { data: projData, error: projErr } = await supabase
         .from('projects')
         .select('*')
-        .eq('projectId', projectId)
+        .eq('id', String(projectId))
         .single();
 
       if (projErr) throw projErr;
-      setProject(projData as Project);
+      setProject(mapProjectFromDB(projData));
 
       // Fetch expenses for this project (matching the @Relation query)
       const { data: expData, error: expErr } = await supabase
         .from('expenses')
         .select('*')
-        .eq('parentProjectId', projectId)
-        .eq('isDeleted', false)
-        .order('date', { ascending: false });
+        .eq('project_id', String(projectId))
+        .order('expense_date', { ascending: false });
 
       if (expErr) throw expErr;
-      setExpenses((expData as Expense[]) || []);
+      setExpenses((expData || []).map(mapExpenseFromDB));
     } catch (err: any) {
       setError(err.message || 'Failed to fetch expenses');
     } finally {
@@ -65,17 +65,19 @@ export function useExpenses(projectId?: number) {
   const addExpense = useCallback(
     async (expense: Omit<Expense, 'expenseId'>) => {
       try {
+        const dbExpense = mapExpenseToDB(expense);
         const { data, error: insertErr } = await supabase
           .from('expenses')
-          .insert(expense)
+          .insert(dbExpense)
           .select()
           .single();
 
         if (insertErr) throw insertErr;
 
+        const newExpense = mapExpenseFromDB(data);
         // Optimistic add
-        setExpenses((prev) => [data as Expense, ...prev]);
-        return data as Expense;
+        setExpenses((prev) => [newExpense, ...prev]);
+        return newExpense;
       } catch (err: any) {
         setError(err.message || 'Failed to add expense');
         return null;
@@ -88,20 +90,22 @@ export function useExpenses(projectId?: number) {
   const updateExpense = useCallback(
     async (expenseId: number, updates: Partial<Expense>) => {
       try {
+        const dbUpdates = mapExpenseToDB(updates);
         const { data, error: updateErr } = await supabase
           .from('expenses')
-          .update(updates)
-          .eq('expenseId', expenseId)
+          .update(dbUpdates)
+          .eq('id', String(expenseId))
           .select()
           .single();
 
         if (updateErr) throw updateErr;
 
+        const updatedExpense = mapExpenseFromDB(data);
         // Optimistic update
         setExpenses((prev) =>
-          prev.map((e) => (e.expenseId === expenseId ? (data as Expense) : e))
+          prev.map((e) => (e.expenseId === expenseId ? updatedExpense : e))
         );
-        return data as Expense;
+        return updatedExpense;
       } catch (err: any) {
         setError(err.message || 'Failed to update expense');
         return null;
@@ -116,8 +120,8 @@ export function useExpenses(projectId?: number) {
       try {
         const { error: delErr } = await supabase
           .from('expenses')
-          .update({ isDeleted: true })
-          .eq('expenseId', expenseId);
+          .delete()
+          .eq('id', String(expenseId));
 
         if (delErr) throw delErr;
 
