@@ -125,11 +125,17 @@ function getProjectStatusColors(status: string): {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    borderRadius: borderRadii.md,                   // RoundedCornerShape(8.dp)
+    borderRadius: borderRadii.lg,                   // theme.metrics.borderRadius.lg
     backgroundColor: lightColors.surface,
     borderWidth: 1,
     borderColor: lightColors.outlineVariant,
     padding: spacing.xl,                            // .padding(16.dp)
+    // Elevation matching Compose default card
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -140,12 +146,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   projectName: {
-    fontSize: 16,                                   // 16.sp
+    ...typography.bodyLarge,                        // 16.sp
     fontWeight: '700',                              // FontWeight.Bold
     color: lightColors.onSurface,
   },
   projectId: {
-    fontSize: 10,                                   // 10.sp
+    ...typography.labelSmall,                       // 11.sp
+    fontSize: 10,                                   // 10.sp override
     fontWeight: '500',                              // FontWeight.Medium
     letterSpacing: -0.025 * 10,                     // tracking-tight
     color: lightColors.textTertiary,                // AppTheme.extended.textTertiary
@@ -157,7 +164,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,                    // vertical = 2.dp
   },
   statusText: {
-    fontSize: 10,                                   // 10.sp
+    ...typography.labelSmall,                       // 11.sp
+    fontSize: 10,                                   // override for 10.sp
     fontWeight: '700',                              // FontWeight.Bold
   },
   budgetRow: {
@@ -166,11 +174,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,                          // Spacer(12.dp)
   },
   budgetLabel: {
-    fontSize: 12,                                   // 12.sp
+    ...typography.labelMedium,                      // 12.sp
     color: lightColors.textSecondary,
   },
   budgetValue: {
-    fontSize: 12,                                   // 12.sp
+    ...typography.labelMedium,                      // 12.sp
     color: lightColors.textSecondary,
   },
   progressTrack: {

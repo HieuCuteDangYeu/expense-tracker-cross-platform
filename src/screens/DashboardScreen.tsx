@@ -15,7 +15,7 @@
  * Data: useProjects() hook replaces ProjectViewModel collect.
  * Navigation: onProjectClick → navigate('ProjectDetails')
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -31,17 +31,22 @@ import { useProjects } from '../hooks/useProjects';
 import ProjectCard from '../components/ProjectCard';
 import EmptyStateMessage from '../components/EmptyStateMessage';
 import FullScreenLoadingIndicator from '../components/FullScreenLoadingIndicator';
+import AdvancedSearchPanel from '../components/AdvancedSearchPanel';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 export default function DashboardScreen({ navigation }: Props) {
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const {
     projects,
     isLoading,
     searchQuery,
     setSearchQuery,
+    filterState,
+    setFilterState,
+    managers,
     refetch,
   } = useProjects();
 
@@ -69,10 +74,8 @@ export default function DashboardScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       {/* ─── Sticky Search & Filter Bar ─── */}
-      {/* Surface(shadowElevation=1.dp) → View with elevation */}
       <View style={styles.searchBarSurface}>
         <View style={styles.searchRow}>
-          {/* OutlinedTextField(weight=1f, rounded=8.dp) */}
           <View style={styles.searchInputContainer}>
             <MaterialIcons
               name="search"
@@ -89,18 +92,29 @@ export default function DashboardScreen({ navigation }: Props) {
             />
           </View>
 
-          {/* Button("Filter", primary, rounded=8.dp) */}
           <TouchableOpacity
             style={styles.filterButton}
             activeOpacity={0.85}
+            onPress={() => setIsFilterVisible((prev) => !prev)}
           >
             <Text style={styles.filterButtonText}>Filter</Text>
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* ─── Advanced Search Panel ─── */}
+      <AdvancedSearchPanel
+        visible={isFilterVisible}
+        filterState={filterState}
+        managers={managers}
+        onStatusChange={(status) => setFilterState((prev) => ({ ...prev, status }))}
+        onManagerChange={(manager) => setFilterState((prev) => ({ ...prev, manager }))}
+        onStartDateChange={(startDate) => setFilterState((prev) => ({ ...prev, startDate }))}
+        onEndDateChange={(endDate) => setFilterState((prev) => ({ ...prev, endDate }))}
+        onClearFilters={() => setFilterState({})}
+      />
+
       {/* ─── Project List ─── */}
-      {/* LazyColumn(contentPadding=16.dp, spacedBy=12.dp) */}
       <FlatList
         data={projects}
         keyExtractor={(item) => String(item.project.projectId)}
@@ -117,8 +131,8 @@ export default function DashboardScreen({ navigation }: Props) {
           <EmptyStateMessage
             title="No projects found"
             description={
-              searchQuery
-                ? 'Try adjusting your search terms'
+              searchQuery || Object.keys(filterState).length > 0
+                ? 'Try adjusting your search terms or filters'
                 : 'Create your first project to get started'
             }
             iconName="folder-open"

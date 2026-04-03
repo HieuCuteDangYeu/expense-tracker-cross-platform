@@ -16,7 +16,7 @@
  *
  * Footer: Cancel + Save buttons
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,10 +27,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { supabase } from '../services/supabase';
 import { getTodayFormatted } from '../utils/dateUtils';
 import { mapExpenseToDB } from '../utils/mapper';
+import { useExpenses } from '../hooks/useExpenses';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -56,7 +59,11 @@ interface ExpenseForm {
 }
 
 export default function AddExpenseBottomSheet({ navigation, route }: Props) {
-  const { projectId } = route.params;
+  const { projectId, expenseId } = route.params;
+  const { expenses } = useExpenses(projectId);
+  
+  const insets = useSafeAreaInsets();
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [form, setForm] = useState<ExpenseForm>({
     amount: '',
@@ -77,6 +84,26 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: '' }));
   }, []);
+
+  // Pre-fill form if editing
+  useEffect(() => {
+    if (expenseId) {
+      const existingExpense = expenses.find((e) => e.expenseId === expenseId);
+      if (existingExpense) {
+        setForm({
+          amount: existingExpense.amount.toString(),
+          currency: existingExpense.currency,
+          type: existingExpense.type,
+          date: existingExpense.date,
+          paymentMethod: existingExpense.paymentMethod,
+          claimant: existingExpense.claimant,
+          paymentStatus: existingExpense.paymentStatus,
+          description: existingExpense.description || '',
+          location: existingExpense.location || '',
+        });
+      }
+    }
+  }, [expenseId, expenses]);
 
   // Validate (matching ExpenseViewModel validation)
   const validate = useCallback((): boolean => {
@@ -111,7 +138,14 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
       
       const dbPayload = mapExpenseToDB(payload);
       
-      await supabase.from('expenses').insert(dbPayload);
+      if (expenseId) {
+        await supabase
+          .from('expenses')
+          .update(dbPayload)
+          .eq('expense_id', expenseId);
+      } else {
+        await supabase.from('expenses').insert(dbPayload);
+      }
       navigation.goBack();
     } catch {
       // Error handling placeholder
@@ -125,33 +159,80 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Drag handle (matching ModalBottomSheet) */}
-      <View style={styles.handleBar}>
-        <View style={styles.handle} />
-      </View>
-
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.xxl }
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ═══ Amount & Currency Row ═══ */}
+        {/* ═══ Amount & Currency Row (Hero Size) ═══ */}
+        <View style={styles.heroAmountContainer}>
+          <Text style={styles.heroCurrencySymbol}>$</Text>
+          <TextInput
+            style={[styles.heroAmountInput, errors.amount ? { color: lightColors.error } : null]}
+            value={form.amount}
+            onChangeText={(v) => updateField('amount', v)}
+            keyboardType="numeric"
+            placeholder="0.00"
+            placeholderTextColor={lightColors.textTertiary}
+          />
+        </View>
+        {errors.amount ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: spacing.lg }]}>{errors.amount}</Text> : null}
+
+        {/* ═══ Expense Type (Scrollable Segmented Button Bar) ═══ */}
+        <View style={[styles.section, { gap: spacing.sm }]}>
+          <Text style={styles.fieldLabel}>Expense Type</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollableSelectorGrid}>
+            {EXPENSE_TYPES.map((t) => {
+              const isSelected = form.type === t;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.scrollablePill, isSelected && styles.scrollablePillSelected]}
+                  onPress={() => updateField('type', t)}
+                >
+                  <Text
+                    style={[
+                      styles.scrollablePillText,
+                      isSelected && styles.scrollablePillTextSelected,
+                    ]}
+                  >
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* ═══ Row-Based Grid Fields ═══ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>EXPENSE DETAILS</Text>
-
           <View style={styles.row}>
-            <View style={{ flex: 2 }}>
-              <Text style={styles.fieldLabel}>Amount *</Text>
-              <TextInput
-                style={[styles.input, errors.amount ? styles.inputError : null]}
-                value={form.amount}
-                onChangeText={(v) => updateField('amount', v)}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor={lightColors.textTertiary}
-              />
-              {errors.amount ? <Text style={styles.errorText}>{errors.amount}</Text> : null}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>Date *</Text>
+              <TouchableOpacity
+                style={[styles.input, errors.date ? styles.inputError : null, { justifyContent: 'center' }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={{ color: form.date ? lightColors.onSurface : lightColors.textTertiary, fontSize: 16 }}>
+                  {form.date || 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={form.date ? new Date(form.date) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (event.type === 'set' && selectedDate) {
+                      updateField('date', selectedDate.toISOString().split('T')[0]);
+                    }
+                  }}
+                />
+              )}
             </View>
-
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Currency</Text>
               <TextInput
@@ -163,46 +244,18 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
               />
             </View>
           </View>
-        </View>
 
-        {/* ═══ Expense Type (Segmented Button Bar) ═══ */}
-        <View style={styles.section}>
-          <Text style={styles.fieldLabel}>Expense Type</Text>
-          <View style={styles.chipGrid}>
-            {EXPENSE_TYPES.map((t) => {
-              const isSelected = form.type === t;
-              return (
-                <TouchableOpacity
-                  key={t}
-                  style={[styles.chip, isSelected && styles.chipSelected]}
-                  onPress={() => updateField('type', t)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      isSelected && styles.chipTextSelected,
-                    ]}
-                  >
-                    {t}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* ═══ Date & Payment Method ═══ */}
-        <View style={styles.section}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Date *</Text>
+              <Text style={styles.fieldLabel}>Claimant *</Text>
               <TextInput
-                style={[styles.input, errors.date ? styles.inputError : null]}
-                value={form.date}
-                onChangeText={(v) => updateField('date', v)}
-                placeholder="YYYY-MM-DD"
+                style={[styles.input, errors.claimant ? styles.inputError : null]}
+                value={form.claimant}
+                onChangeText={(v) => updateField('claimant', v)}
+                placeholder="Who paid?"
                 placeholderTextColor={lightColors.textTertiary}
               />
+              {errors.claimant ? <Text style={styles.errorText}>{errors.claimant}</Text> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Payment Method</Text>
@@ -210,45 +263,32 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
                 style={styles.input}
                 value={form.paymentMethod}
                 onChangeText={(v) => updateField('paymentMethod', v)}
-                placeholder="e.g. Cash, Card"
+                placeholder="Cash, Card..."
                 placeholderTextColor={lightColors.textTertiary}
               />
             </View>
           </View>
         </View>
 
-        {/* ═══ Claimant ═══ */}
-        <View style={styles.section}>
-          <Text style={styles.fieldLabel}>Claimant *</Text>
-          <TextInput
-            style={[styles.input, errors.claimant ? styles.inputError : null]}
-            value={form.claimant}
-            onChangeText={(v) => updateField('claimant', v)}
-            placeholder="Who incurred this expense?"
-            placeholderTextColor={lightColors.textTertiary}
-          />
-          {errors.claimant ? <Text style={styles.errorText}>{errors.claimant}</Text> : null}
-        </View>
-
-        {/* ═══ Payment Status (Segmented Buttons) ═══ */}
-        <View style={styles.section}>
+        {/* ═══ Payment Status (Scrollable Segmented Buttons) ═══ */}
+        <View style={[styles.section, { gap: spacing.sm }]}>
           <Text style={styles.fieldLabel}>Payment Status</Text>
-          <View style={styles.segmentedRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollableSelectorGrid}>
             {PAYMENT_STATUSES.map((s) => {
               const isSelected = form.paymentStatus === s;
               return (
                 <TouchableOpacity
                   key={s}
                   style={[
-                    styles.segmentButton,
-                    isSelected && styles.segmentSelected,
+                    styles.scrollablePill,
+                    isSelected && styles.scrollablePillSelected,
                   ]}
                   onPress={() => updateField('paymentStatus', s)}
                 >
                   <Text
                     style={[
-                      styles.segmentText,
-                      isSelected && styles.segmentTextSelected,
+                      styles.scrollablePillText,
+                      isSelected && styles.scrollablePillTextSelected,
                     ]}
                   >
                     {s}
@@ -256,7 +296,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
         {/* ═══ Description (Optional) ═══ */}
@@ -286,7 +326,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
       </ScrollView>
 
       {/* ═══ Footer Buttons ═══ */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom }]}>
         <View style={styles.footerDivider} />
         <View style={styles.footerButtons}>
           <TouchableOpacity
@@ -302,7 +342,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
             disabled={isSubmitting}
           >
             <Text style={styles.saveText}>
-              {isSubmitting ? 'Saving...' : 'Save Expense'}
+              {isSubmitting ? 'Saving...' : expenseId ? 'Update Expense' : 'Save Expense'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -317,35 +357,36 @@ const styles = StyleSheet.create({
     backgroundColor: lightColors.surface,
   },
 
-  // ModalBottomSheet drag handle
-  handleBar: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: lightColors.outlineVariant,
-    borderRadius: borderRadii.full,
-  },
-
   scrollContent: {
     padding: spacing.xl,
     gap: spacing.xl,
-    paddingBottom: 120,
   },
 
   section: {
     gap: spacing.md,
   },
 
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+  heroAmountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+
+  heroCurrencySymbol: {
+    fontSize: 32,
+    fontWeight: '400',
+    color: lightColors.textTertiary,
+    marginRight: spacing.sm,
+    marginTop: -4,
+  },
+
+  heroAmountInput: {
+    fontSize: 48,
+    fontWeight: '700',
     color: lightColors.primary,
-    marginBottom: spacing.md,
+    textAlign: 'center',
+    minWidth: 100,
   },
 
   fieldLabel: {
@@ -383,65 +424,34 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Expense type chips (wrapping grid)
-  chipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // Scrollable selectors
+  scrollableSelectorGrid: {
+    paddingRight: spacing.xl,
     gap: spacing.md,
   },
 
-  chip: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+  scrollablePill: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: borderRadii.full,
     borderWidth: 1,
     borderColor: lightColors.outlineVariant,
     backgroundColor: lightColors.surface,
-  },
-
-  chipSelected: {
-    borderColor: lightColors.primary,
-    backgroundColor: 'rgba(47, 62, 70, 0.1)',
-  },
-
-  chipText: {
-    fontSize: 13,
-    color: lightColors.onSurface,
-  },
-
-  chipTextSelected: {
-    fontWeight: '600',
-    color: lightColors.primary,
-  },
-
-  // Payment status segmented buttons
-  segmentedRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-
-  segmentButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: borderRadii.md,
-    borderWidth: 1,
-    borderColor: lightColors.outlineVariant,
-    backgroundColor: lightColors.surface,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  segmentSelected: {
+  scrollablePillSelected: {
     borderColor: lightColors.primary,
     backgroundColor: 'rgba(47, 62, 70, 0.1)',
   },
 
-  segmentText: {
+  scrollablePillText: {
     fontSize: 14,
     color: lightColors.onSurface,
   },
 
-  segmentTextSelected: {
+  scrollablePillTextSelected: {
     fontWeight: '600',
     color: lightColors.primary,
   },

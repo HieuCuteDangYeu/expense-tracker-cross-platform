@@ -1,18 +1,9 @@
-/**
- * useProjects — replaces ProjectViewModel.kt (online-first, no Room).
- *
- * Kotlin logic ported:
- *   - allProjectsWithExpenses → projects + expenses join
- *   - searchQuery + filterState → client-side filtering
- *   - deleteProject(id) → soft-delete via Supabase
- *
- * Exposes: projects, isLoading, error, searchQuery, setSearchQuery, refetch, deleteProject
- */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../services/supabase';
 import type { Project } from '../types/project';
 import type { Expense } from '../types/expense';
 import { mapProjectFromDB, mapExpenseFromDB } from '../utils/mapper';
+import type { FilterState } from '../components/AdvancedSearchPanel';
 
 export interface ProjectWithExpenses {
   project: Project;
@@ -23,7 +14,10 @@ export function useProjects() {
   const [projects, setProjects] = useState<ProjectWithExpenses[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterState, setFilterState] = useState<FilterState>({});
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -76,15 +70,50 @@ export function useProjects() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Client-side search filter (matching ProjectViewModel combine + flatMapLatest)
+  // Derived list of unique managers for the filter dropdown
+  const managers = useMemo(() => {
+    const mgrs = projects.map((p) => p.project.manager).filter(Boolean);
+    return Array.from(new Set(mgrs));
+  }, [projects]);
+
+  // Client-side search and complex filter
   const filteredProjects = projects.filter((pw) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      pw.project.projectName.toLowerCase().includes(q) ||
-      pw.project.description.toLowerCase().includes(q) ||
-      pw.project.manager.toLowerCase().includes(q)
-    );
+    // 1. Text Search filtering
+    let matchesSearch = true;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      matchesSearch =
+        pw.project.projectName.toLowerCase().includes(q) ||
+        pw.project.description.toLowerCase().includes(q) ||
+        pw.project.manager.toLowerCase().includes(q);
+    }
+
+    // 2. Advanced Status Filter
+    let matchesStatus = true;
+    if (filterState.status) {
+      matchesStatus = pw.project.status === filterState.status;
+    }
+
+    // 3. Advanced Manager Filter
+    let matchesManager = true;
+    if (filterState.manager) {
+      matchesManager = pw.project.manager === filterState.manager;
+    }
+
+    // 4. Date Range Filter
+    let matchesDates = true;
+    if (filterState.startDate || filterState.endDate) {
+      const pStart = new Date(pw.project.startDate).getTime();
+      const pEnd = new Date(pw.project.endDate).getTime();
+      
+      const filterStart = filterState.startDate ? new Date(filterState.startDate).getTime() : null;
+      const filterEnd = filterState.endDate ? new Date(filterState.endDate).getTime() : null;
+
+      if (filterStart && pStart < filterStart) matchesDates = false;
+      if (filterEnd && pEnd > filterEnd) matchesDates = false;
+    }
+
+    return matchesSearch && matchesStatus && matchesManager && matchesDates;
   });
 
   // Soft-delete (matching projectDao.deleteProject which sets isDeleted = true)
@@ -116,6 +145,9 @@ export function useProjects() {
     error,
     searchQuery,
     setSearchQuery,
+    filterState,
+    setFilterState,
+    managers,
     refetch: fetchProjects,
     deleteProject,
   };

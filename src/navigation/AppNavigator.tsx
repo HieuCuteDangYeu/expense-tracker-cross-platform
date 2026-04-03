@@ -25,7 +25,7 @@ export type RootStackParamList = {
   ProjectDetails: { projectId: number };
   ExpenseDetails: { expenseId: number; projectId: number };
   AddProject: { projectId?: number }; // optional for edit mode
-  AddExpense: { projectId: number };
+  AddExpense: { projectId: number; expenseId?: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

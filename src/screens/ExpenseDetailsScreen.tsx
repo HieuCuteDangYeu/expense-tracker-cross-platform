@@ -57,7 +57,14 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TouchableOpacity onPress={() => {/* TODO: trigger edit */}}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('AddExpense', {
+                projectId,
+                expenseId,
+              })
+            }
+          >
             <MaterialIcons name="edit" size={22} color={lightColors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowDeleteDialog(true)}>
@@ -66,7 +73,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, projectId, expenseId]);
 
   // Handle delete
   const handleDelete = useCallback(async () => {

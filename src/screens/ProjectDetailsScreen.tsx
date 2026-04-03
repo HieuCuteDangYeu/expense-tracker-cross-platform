@@ -31,6 +31,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { useExpenses } from '../hooks/useExpenses';
@@ -88,7 +89,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <FlatList
         data={sortedExpenses}
         keyExtractor={(item) => String(item.expenseId)}
@@ -160,17 +161,21 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={{ height: spacing.lg }} />}
         ListEmptyComponent={
-          <EmptyStateMessage
-            title="No expenses yet"
-            description="Add your first expense to this project"
-            iconName="receipt-long"
-          />
+          <View style={{ paddingHorizontal: spacing.xxl }}>
+            <EmptyStateMessage
+              title="No expenses yet"
+              description="Add your first expense to this project"
+              iconName="receipt-long"
+            />
+          </View>
         }
         renderItem={({ item }) => (
-          <ExpenseItemCard
-            expense={item}
-            onPress={() => handleExpensePress(item.expenseId)}
-          />
+          <View style={{ paddingHorizontal: spacing.xxl }}>
+            <ExpenseItemCard
+              expense={item}
+              onPress={() => handleExpensePress(item.expenseId)}
+            />
+          </View>
         )}
       />
 
@@ -183,7 +188,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
       >
         <MaterialIcons name="add" size={24} color={lightColors.onPrimary} />
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -193,12 +198,11 @@ const styles = StyleSheet.create({
     backgroundColor: lightColors.background,
   },
 
-  // Surface(color=surface) header
   headerSurface: {
-    backgroundColor: lightColors.surface,
-    paddingHorizontal: spacing.xl,    // start=16, end=16
+    backgroundColor: lightColors.background,
     paddingTop: 0,                     // top=0.dp
     paddingBottom: spacing.xl,         // bottom=16.dp
+    paddingHorizontal: spacing.xxl,
   },
 
   projectName: {
@@ -274,14 +278,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,             // .padding(top = 8.dp)
   },
 
-  // Transactions section
   transactionsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.xxl,    // padding(24.dp) horizontal
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,         // Spacer(16.dp)
+    paddingHorizontal: spacing.xxl,
   },
 
   transactionsTitle: {
@@ -297,7 +300,7 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    paddingHorizontal: spacing.xxl,    // matches Column(padding=24.dp)
+    paddingTop: spacing.xl,
     paddingBottom: 100,
   },
 
