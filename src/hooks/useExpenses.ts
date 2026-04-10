@@ -70,8 +70,7 @@ export function useExpenses(projectId?: number) {
         setError(null);
 
         const dbExpense = mapExpenseToDB(expense);
-        // DB `id` is a non-nullable text PK with no default — generate client-side
-        dbExpense.id = Date.now().toString();
+        // id is omitted — DB auto-generates via column default
         const { data, error: insertErr } = await supabase
           .from('expenses')
           .insert(dbExpense)
@@ -104,6 +103,8 @@ export function useExpenses(projectId?: number) {
         setError(null);
 
         const dbUpdates = mapExpenseToDB(updates);
+        // Ensure id is NEVER in the update payload — only in the .eq() filter
+        delete dbUpdates.id;
         const { data, error: updateErr } = await supabase
           .from('expenses')
           .update(dbUpdates)

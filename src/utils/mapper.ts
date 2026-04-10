@@ -56,8 +56,12 @@ export function mapExpenseToDB(expense: Partial<Expense>): any {
   const dbRecord: any = {};
   // parentProjectId (frontend) → project_id (DB text column)
   if (expense.parentProjectId !== undefined) dbRecord.project_id = String(expense.parentProjectId);
-  // date (frontend) → expense_date (DB text column, ISO format YYYY-MM-DD)
-  if (expense.date !== undefined) dbRecord.expense_date = String(expense.date);
+  // date (frontend) → expense_date (DB text column, strict ISO YYYY-MM-DD)
+  if (expense.date !== undefined) {
+    // Ensure we only send the YYYY-MM-DD portion
+    const raw = String(expense.date);
+    dbRecord.expense_date = raw.length > 10 ? raw.slice(0, 10) : raw;
+  }
   // amount — explicitly cast to Number to prevent Supabase numeric type-mismatch
   if (expense.amount !== undefined) dbRecord.amount = Number(expense.amount);
   // currency (frontend) → currency (DB text column)
@@ -76,6 +80,13 @@ export function mapExpenseToDB(expense: Partial<Expense>): any {
   if (expense.location !== undefined) dbRecord.location = expense.location;
   // receiptUrl (frontend) → receiptUrl (DB column is camelCase)
   if (expense.receiptUrl !== undefined) dbRecord['receiptUrl'] = expense.receiptUrl;
-  // Note: isDeleted is not mapped — the DB uses hard deletes
+
+  // NEVER send id — DB auto-generates it via default
+  delete dbRecord.id;
+  delete dbRecord.expenseId;
+  // isDeleted does not exist in the DB schema — hard deletes only
+  delete dbRecord.isDeleted;
+  delete dbRecord.is_deleted;
+
   return dbRecord;
 }

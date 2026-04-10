@@ -144,7 +144,6 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         description: form.description.trim() || null,
         location: form.location.trim() || null,
         receiptUrl: null,
-        isDeleted: false,
       };
 
       let result;
