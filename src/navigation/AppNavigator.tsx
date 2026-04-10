@@ -16,7 +16,6 @@ import { lightColors, typography } from '../theme/theme';
 import DashboardScreen from '../screens/DashboardScreen';
 import ProjectDetailsScreen from '../screens/ProjectDetailsScreen';
 import ExpenseDetailsScreen from '../screens/ExpenseDetailsScreen';
-import AddProjectScreen from '../screens/AddProjectScreen';
 import AddExpenseBottomSheet from '../screens/AddExpenseBottomSheet';
 
 // ─── Type Definitions ───────────────────────────────────────────────────────
@@ -24,7 +23,6 @@ export type RootStackParamList = {
   Dashboard: undefined;
   ProjectDetails: { projectId: number };
   ExpenseDetails: { expenseId: number; projectId: number };
-  AddProject: { projectId?: number }; // optional for edit mode
   AddExpense: { projectId: number; expenseId?: number };
 };
 
@@ -69,13 +67,6 @@ export default function AppNavigator() {
         name="ExpenseDetails"
         component={ExpenseDetailsScreen}
         options={{ title: 'Expense Details' }}
-      />
-      <Stack.Screen
-        name="AddProject"
-        component={AddProjectScreen}
-        options={({ route }) => ({
-          title: route.params?.projectId ? 'Edit Project' : 'New Project',
-        })}
       />
 
       {/* Modal — slides up from bottom, matching ModalBottomSheet */}

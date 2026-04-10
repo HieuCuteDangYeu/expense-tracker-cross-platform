@@ -29,8 +29,6 @@ interface ProjectCardProps {
   project: Project;
   expenses: Expense[];
   onPress?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
   onToggleFavorite?: () => void;
   style?: ViewStyle;
 }

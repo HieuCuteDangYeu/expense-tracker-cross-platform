@@ -59,14 +59,6 @@ export default function DashboardScreen({ navigation }: Props) {
     [navigation]
   );
 
-  // Navigate to AddProject for editing
-  const handleEditProject = useCallback(
-    (projectId: number) => {
-      navigation.navigate('AddProject', { projectId });
-    },
-    [navigation]
-  );
-
   // Initial loading state
   if (isLoading && projects.length === 0) {
     return <FullScreenLoadingIndicator />;
@@ -146,7 +138,6 @@ export default function DashboardScreen({ navigation }: Props) {
             project={item.project}
             expenses={item.expenses}
             onPress={() => handleProjectPress(item.project.projectId)}
-            onEdit={() => handleEditProject(item.project.projectId)}
             onToggleFavorite={() => toggleFavorite(item.project.projectId, item.project.isFavorite)}
           />
         )}

@@ -129,27 +129,7 @@ export function useProjects() {
     return 0;
   });
 
-  // Soft-delete (matching projectDao.deleteProject which sets isDeleted = true)
-  const deleteProject = useCallback(
-    async (projectId: number) => {
-      try {
-        const { error: delError } = await supabase
-          .from('projects')
-          .delete()
-          .eq('id', projectId);
 
-        if (delError) throw delError;
-
-        // Optimistic removal from local state
-        setProjects((prev) =>
-          prev.filter((pw) => pw.project.projectId !== projectId)
-        );
-      } catch (err: any) {
-        setError(err.message || 'Failed to delete project');
-      }
-    },
-    []
-  );
 
   // Toggle favorite with optimistic update
   const toggleFavorite = useCallback(
@@ -202,7 +182,6 @@ export function useProjects() {
     setFilterState,
     managers,
     refetch: fetchProjects,
-    deleteProject,
     toggleFavorite,
   };
 }
