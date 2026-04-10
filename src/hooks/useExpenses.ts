@@ -115,7 +115,7 @@ export function useExpenses(projectId?: number) {
         if (updateErr) throw updateErr;
 
         const updatedExpense = mapExpenseFromDB(data);
-        // Optimistic update in local state
+        // Update the local state immediately with the server's version
         setExpenses((prev) =>
           prev.map((e) => (e.expenseId === expenseId ? updatedExpense : e))
         );

@@ -48,7 +48,7 @@ export function mapExpenseFromDB(row: any): Expense {
     description: row.description || null,
     location: row.location || null,
     receiptUrl: row.receiptUrl || row.receipturl || null,
-    isDeleted: false,
+    updatedAt: row.updated_at || undefined,
   };
 }
 

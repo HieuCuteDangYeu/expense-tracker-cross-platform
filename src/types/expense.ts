@@ -15,7 +15,7 @@ export interface Expense {
   description: string | null;
   location: string | null;
   receiptUrl: string | null;
-  isDeleted: boolean;
+  updatedAt?: string;
 }
 
 /**
