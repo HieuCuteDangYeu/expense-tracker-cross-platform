@@ -17,6 +17,7 @@ export interface FilterState {
   manager?: string | null;
   startDate?: string | null;
   endDate?: string | null;
+  favoritesOnly?: boolean;
 }
 
 interface AdvancedSearchPanelProps {
@@ -27,6 +28,7 @@ interface AdvancedSearchPanelProps {
   onManagerChange: (manager: string | null) => void;
   onStartDateChange: (date: string | null) => void;
   onEndDateChange: (date: string | null) => void;
+  onFavoritesOnlyChange: (value: boolean) => void;
   onClearFilters: () => void;
 }
 
@@ -40,6 +42,7 @@ export default function AdvancedSearchPanel({
   onManagerChange,
   onStartDateChange,
   onEndDateChange,
+  onFavoritesOnlyChange,
   onClearFilters,
 }: AdvancedSearchPanelProps) {
   const [managerModalVisible, setManagerModalVisible] = useState(false);
@@ -131,6 +134,36 @@ export default function AdvancedSearchPanel({
           }}
         />
       )}
+
+      {/* Favorites Only Toggle */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>FAVORITES</Text>
+        <View style={styles.chipsContainer}>
+          <TouchableOpacity
+            onPress={() => onFavoritesOnlyChange(!filterState.favoritesOnly)}
+            style={[
+              styles.chip,
+              filterState.favoritesOnly && styles.chipSelected,
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <MaterialIcons
+                name={filterState.favoritesOnly ? 'favorite' : 'favorite-border'}
+                size={14}
+                color={filterState.favoritesOnly ? lightColors.onPrimary : lightColors.onSurfaceVariant}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  filterState.favoritesOnly && styles.chipTextSelected,
+                ]}
+              >
+                Favorites Only
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Status */}
       <View style={styles.section}>

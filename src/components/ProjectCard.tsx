@@ -14,6 +14,7 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   lightColors,
   spacing,
@@ -30,6 +31,7 @@ interface ProjectCardProps {
   onPress?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleFavorite?: () => void;
   style?: ViewStyle;
 }
 
@@ -37,6 +39,7 @@ export default function ProjectCard({
   project,
   expenses,
   onPress,
+  onToggleFavorite,
   style,
 }: ProjectCardProps) {
   // Calculate budget usage — matching Kotlin logic
@@ -57,10 +60,26 @@ export default function ProjectCard({
       onPress={onPress}
       style={[styles.container, style]}
     >
-      {/* Header Row: Name + Status Badge */}
+      {/* Header Row: Name + Favorite + Status Badge */}
       <View style={styles.headerRow}>
         <View style={styles.nameColumn}>
-          <Text style={styles.projectName}>{project.projectName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={[styles.projectName, { flex: 1 }]}>{project.projectName}</Text>
+            <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={(e) => {
+                e.stopPropagation();
+                onToggleFavorite?.();
+              }}
+              style={{ marginLeft: spacing.sm }}
+            >
+              <MaterialIcons
+                name={project.isFavorite ? 'favorite' : 'favorite-border'}
+                size={20}
+                color={project.isFavorite ? '#EF4444' : lightColors.textTertiary}
+              />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.projectId}>
             ID: {getFormattedProjectId(project.projectId)}
           </Text>

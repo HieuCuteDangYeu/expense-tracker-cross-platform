@@ -15,6 +15,7 @@ export interface Project {
   clientInfo: string | null;
   priority: 'Low' | 'Medium' | 'High' | string;
   isDeleted: boolean;
+  isFavorite: boolean;
 }
 
 /**

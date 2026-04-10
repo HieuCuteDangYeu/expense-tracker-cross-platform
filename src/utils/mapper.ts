@@ -15,6 +15,7 @@ export function mapProjectFromDB(row: any): Project {
     clientInfo: row.client_info || null,
     priority: 'Medium', // Placeholder since DB doesn't have it
     isDeleted: false, // DB performs hard deletes
+    isFavorite: row.is_favorite ?? false,
   };
 }
 
@@ -29,6 +30,7 @@ export function mapProjectToDB(project: Partial<Project>): any {
   if (project.budget !== undefined) dbRecord.budget = project.budget;
   if (project.specialRequirements !== undefined) dbRecord.special_requirements = project.specialRequirements;
   if (project.clientInfo !== undefined) dbRecord.client_info = project.clientInfo;
+  if (project.isFavorite !== undefined) dbRecord.is_favorite = project.isFavorite;
   return dbRecord;
 }
 

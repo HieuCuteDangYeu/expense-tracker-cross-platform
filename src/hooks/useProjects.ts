@@ -113,7 +113,20 @@ export function useProjects() {
       if (filterEnd && pEnd > filterEnd) matchesDates = false;
     }
 
-    return matchesSearch && matchesStatus && matchesManager && matchesDates;
+    // 5. Favorites Only Filter
+    let matchesFavorites = true;
+    if (filterState.favoritesOnly) {
+      matchesFavorites = pw.project.isFavorite === true;
+    }
+
+    return matchesSearch && matchesStatus && matchesManager && matchesDates && matchesFavorites;
+  });
+
+  // Sort: favorites first, then preserve original order
+  const sortedFilteredProjects = [...filteredProjects].sort((a, b) => {
+    if (a.project.isFavorite && !b.project.isFavorite) return -1;
+    if (!a.project.isFavorite && b.project.isFavorite) return 1;
+    return 0;
   });
 
   // Soft-delete (matching projectDao.deleteProject which sets isDeleted = true)
@@ -138,8 +151,48 @@ export function useProjects() {
     []
   );
 
+  // Toggle favorite with optimistic update
+  const toggleFavorite = useCallback(
+    async (projectId: number, currentStatus: boolean) => {
+      // Optimistic update
+      setProjects((prev) =>
+        prev.map((pw) =>
+          pw.project.projectId === projectId
+            ? {
+                ...pw,
+                project: { ...pw.project, isFavorite: !currentStatus },
+              }
+            : pw
+        )
+      );
+
+      try {
+        const { error: favError } = await supabase
+          .from('projects')
+          .update({ is_favorite: !currentStatus })
+          .eq('id', projectId);
+
+        if (favError) throw favError;
+      } catch (err: any) {
+        // Revert on failure
+        setProjects((prev) =>
+          prev.map((pw) =>
+            pw.project.projectId === projectId
+              ? {
+                  ...pw,
+                  project: { ...pw.project, isFavorite: currentStatus },
+                }
+              : pw
+          )
+        );
+        setError(err.message || 'Failed to toggle favorite');
+      }
+    },
+    []
+  );
+
   return {
-    projects: filteredProjects,
+    projects: sortedFilteredProjects,
     allProjects: projects,
     isLoading,
     error,
@@ -150,5 +203,6 @@ export function useProjects() {
     managers,
     refetch: fetchProjects,
     deleteProject,
+    toggleFavorite,
   };
 }

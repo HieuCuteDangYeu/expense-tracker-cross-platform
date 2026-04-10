@@ -48,6 +48,7 @@ export default function DashboardScreen({ navigation }: Props) {
     setFilterState,
     managers,
     refetch,
+    toggleFavorite,
   } = useProjects();
 
   // Navigate to ProjectDetails (matching onProjectClick callback)
@@ -111,6 +112,7 @@ export default function DashboardScreen({ navigation }: Props) {
         onManagerChange={(manager) => setFilterState((prev) => ({ ...prev, manager }))}
         onStartDateChange={(startDate) => setFilterState((prev) => ({ ...prev, startDate }))}
         onEndDateChange={(endDate) => setFilterState((prev) => ({ ...prev, endDate }))}
+        onFavoritesOnlyChange={(favoritesOnly) => setFilterState((prev) => ({ ...prev, favoritesOnly }))}
         onClearFilters={() => setFilterState({})}
       />
 
@@ -145,6 +147,7 @@ export default function DashboardScreen({ navigation }: Props) {
             expenses={item.expenses}
             onPress={() => handleProjectPress(item.project.projectId)}
             onEdit={() => handleEditProject(item.project.projectId)}
+            onToggleFavorite={() => toggleFavorite(item.project.projectId, item.project.isFavorite)}
           />
         )}
       />
