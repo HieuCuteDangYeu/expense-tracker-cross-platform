@@ -70,6 +70,8 @@ export function useExpenses(projectId?: number) {
         setError(null);
 
         const dbExpense = mapExpenseToDB(expense);
+        // DB `id` is a non-nullable text PK with no default — generate client-side
+        dbExpense.id = Date.now().toString();
         const { data, error: insertErr } = await supabase
           .from('expenses')
           .insert(dbExpense)
