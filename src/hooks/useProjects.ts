@@ -171,6 +171,33 @@ export function useProjects() {
     []
   );
 
+  // Hard-delete project
+  const deleteProject = useCallback(
+    async (projectId: number) => {
+      try {
+        setIsLoading(true); // Reusing isLoading for mutation state to prevent flashes
+        setError(null);
+
+        const { error: delErr } = await supabase
+          .from('projects')
+          .delete()
+          .eq('id', String(projectId));
+
+        if (delErr) throw delErr;
+
+        // Remove from local state immediately
+        setProjects((prev) => prev.filter((pw) => pw.project.projectId !== projectId));
+      } catch (err: any) {
+        const msg = err.message || 'Failed to delete project';
+        console.error('[useProjects] deleteProject failed:', msg, err.details || '', err.hint || '');
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
   return {
     projects: sortedFilteredProjects,
     allProjects: projects,
@@ -183,5 +210,6 @@ export function useProjects() {
     managers,
     refetch: fetchProjects,
     toggleFavorite,
+    deleteProject,
   };
 }
