@@ -5,10 +5,10 @@
  *
  * Form fields (from Kotlin source):
  *   - Amount (number, required)
- *   - Currency (text, default USD)
- *   - Expense Type (segmented button bar: Travel/Equipment/Materials/Services/Software/Labour/Utilities/Misc)
+ *   - Currency (dropdown: USD/EUR/GBP)
+ *   - Expense Type (dropdown picker)
  *   - Date picker
- *   - Payment Method (text)
+ *   - Payment Method (segmented button bar: Cash/Card/Transfer/Cheque)
  *   - Claimant (text, required)
  *   - Payment Status (segmented: Paid/Pending/Reimbursed)
  *   - Description (multiline, optional)
@@ -26,13 +26,15 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Pressable,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
-import { supabase } from '../services/supabase';
 import { getTodayFormatted } from '../utils/dateUtils';
-import { mapExpenseToDB } from '../utils/mapper';
 import { useExpenses } from '../hooks/useExpenses';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -42,6 +44,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddExpense'>;
 const EXPENSE_TYPES = [
   'Travel', 'Equipment', 'Materials', 'Services',
   'Software', 'Labour', 'Utilities', 'Misc',
+];
+
+const PAYMENT_METHODS = ['Cash', 'Card', 'Transfer', 'Cheque'];
+
+const CURRENCIES = [
+  { label: 'USD ($)', value: 'USD' },
+  { label: 'EUR (€)', value: 'EUR' },
+  { label: 'GBP (£)', value: 'GBP' },
 ];
 
 const PAYMENT_STATUSES = ['Paid', 'Pending', 'Reimbursed'];
@@ -60,17 +70,19 @@ interface ExpenseForm {
 
 export default function AddExpenseBottomSheet({ navigation, route }: Props) {
   const { projectId, expenseId } = route.params;
-  const { expenses } = useExpenses(projectId);
-  
+  const { expenses, addExpense, updateExpense, refetch } = useExpenses(projectId);
+
   const insets = useSafeAreaInsets();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   const [form, setForm] = useState<ExpenseForm>({
     amount: '',
     currency: 'USD',
     type: 'Travel',
     date: getTodayFormatted(),
-    paymentMethod: '',
+    paymentMethod: 'Cash',
     claimant: '',
     paymentStatus: 'Pending',
     description: '',
@@ -116,18 +128,18 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
-  // Save expense
+  // Save expense — delegates to hook mutations
   const handleSave = useCallback(async () => {
     if (!validate()) return;
     setIsSubmitting(true);
     try {
-      const payload: any = {
+      const payload = {
         parentProjectId: projectId,
         amount: parseFloat(form.amount),
         currency: form.currency || 'USD',
         type: form.type,
         date: form.date,
-        paymentMethod: form.paymentMethod.trim() || 'Cash',
+        paymentMethod: form.paymentMethod || 'Cash',
         claimant: form.claimant.trim(),
         paymentStatus: form.paymentStatus,
         description: form.description.trim() || null,
@@ -135,24 +147,25 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         receiptUrl: null,
         isDeleted: false,
       };
-      
-      const dbPayload = mapExpenseToDB(payload);
-      
+
       if (expenseId) {
-        await supabase
-          .from('expenses')
-          .update(dbPayload)
-          .eq('expense_id', expenseId);
+        // Edit mode — update via hook
+        await updateExpense(expenseId, payload);
       } else {
-        await supabase.from('expenses').insert(dbPayload);
+        // Create mode — insert via hook
+        await addExpense(payload);
       }
+
       navigation.goBack();
     } catch {
-      // Error handling placeholder
+      // Error is handled by the hook's setError
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, projectId, validate, navigation]);
+  }, [form, projectId, expenseId, validate, navigation, addExpense, updateExpense]);
+
+  // Currency symbol for hero display
+  const currencySymbol = form.currency === 'EUR' ? '€' : form.currency === 'GBP' ? '£' : '$';
 
   return (
     <KeyboardAvoidingView
@@ -168,7 +181,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
       >
         {/* ═══ Amount & Currency Row (Hero Size) ═══ */}
         <View style={styles.heroAmountContainer}>
-          <Text style={styles.heroCurrencySymbol}>$</Text>
+          <Text style={styles.heroCurrencySymbol}>{currencySymbol}</Text>
           <TextInput
             style={[styles.heroAmountInput, errors.amount ? { color: lightColors.error } : null]}
             value={form.amount}
@@ -180,30 +193,16 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         </View>
         {errors.amount ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: spacing.lg }]}>{errors.amount}</Text> : null}
 
-        {/* ═══ Expense Type (Scrollable Segmented Button Bar) ═══ */}
+        {/* ═══ Expense Type (Dropdown Picker) ═══ */}
         <View style={[styles.section, { gap: spacing.sm }]}>
           <Text style={styles.fieldLabel}>Expense Type</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollableSelectorGrid}>
-            {EXPENSE_TYPES.map((t) => {
-              const isSelected = form.type === t;
-              return (
-                <TouchableOpacity
-                  key={t}
-                  style={[styles.scrollablePill, isSelected && styles.scrollablePillSelected]}
-                  onPress={() => updateField('type', t)}
-                >
-                  <Text
-                    style={[
-                      styles.scrollablePillText,
-                      isSelected && styles.scrollablePillTextSelected,
-                    ]}
-                  >
-                    {t}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowTypePicker(true)}
+          >
+            <Text style={styles.dropdownButtonText}>{form.type}</Text>
+            <MaterialIcons name="arrow-drop-down" size={24} color={lightColors.onSurfaceVariant} />
+          </TouchableOpacity>
         </View>
 
         {/* ═══ Row-Based Grid Fields ═══ */}
@@ -235,13 +234,15 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Currency</Text>
-              <TextInput
-                style={styles.input}
-                value={form.currency}
-                onChangeText={(v) => updateField('currency', v)}
-                placeholder="USD"
-                placeholderTextColor={lightColors.textTertiary}
-              />
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowCurrencyPicker(true)}
+              >
+                <Text style={styles.dropdownButtonText}>
+                  {CURRENCIES.find((c) => c.value === form.currency)?.label || form.currency}
+                </Text>
+                <MaterialIcons name="arrow-drop-down" size={24} color={lightColors.onSurfaceVariant} />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -257,38 +258,61 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
               />
               {errors.claimant ? <Text style={styles.errorText}>{errors.claimant}</Text> : null}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Payment Method</Text>
-              <TextInput
-                style={styles.input}
-                value={form.paymentMethod}
-                onChangeText={(v) => updateField('paymentMethod', v)}
-                placeholder="Cash, Card..."
-                placeholderTextColor={lightColors.textTertiary}
-              />
-            </View>
           </View>
         </View>
 
-        {/* ═══ Payment Status (Scrollable Segmented Buttons) ═══ */}
+        {/* ═══ Payment Method (Segmented Button Bar) ═══ */}
+        <View style={[styles.section, { gap: spacing.sm }]}>
+          <Text style={styles.fieldLabel}>Payment Method</Text>
+          <View style={styles.segmentedBar}>
+            {PAYMENT_METHODS.map((method, index) => {
+              const isSelected = form.paymentMethod === method;
+              return (
+                <TouchableOpacity
+                  key={method}
+                  style={[
+                    styles.segmentedButton,
+                    isSelected && styles.segmentedButtonSelected,
+                    index === 0 && styles.segmentedButtonFirst,
+                    index === PAYMENT_METHODS.length - 1 && styles.segmentedButtonLast,
+                  ]}
+                  onPress={() => updateField('paymentMethod', method)}
+                >
+                  <Text
+                    style={[
+                      styles.segmentedButtonText,
+                      isSelected && styles.segmentedButtonTextSelected,
+                    ]}
+                  >
+                    {method}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ═══ Payment Status (Segmented Buttons) ═══ */}
         <View style={[styles.section, { gap: spacing.sm }]}>
           <Text style={styles.fieldLabel}>Payment Status</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollableSelectorGrid}>
-            {PAYMENT_STATUSES.map((s) => {
+          <View style={styles.segmentedBar}>
+            {PAYMENT_STATUSES.map((s, index) => {
               const isSelected = form.paymentStatus === s;
               return (
                 <TouchableOpacity
                   key={s}
                   style={[
-                    styles.scrollablePill,
-                    isSelected && styles.scrollablePillSelected,
+                    styles.segmentedButton,
+                    isSelected && styles.segmentedButtonSelected,
+                    index === 0 && styles.segmentedButtonFirst,
+                    index === PAYMENT_STATUSES.length - 1 && styles.segmentedButtonLast,
                   ]}
                   onPress={() => updateField('paymentStatus', s)}
                 >
                   <Text
                     style={[
-                      styles.scrollablePillText,
-                      isSelected && styles.scrollablePillTextSelected,
+                      styles.segmentedButtonText,
+                      isSelected && styles.segmentedButtonTextSelected,
                     ]}
                   >
                     {s}
@@ -296,7 +320,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
 
         {/* ═══ Description (Optional) ═══ */}
@@ -347,6 +371,90 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ═══ Expense Type Picker Modal ═══ */}
+      <Modal
+        visible={showTypePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTypePicker(false)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowTypePicker(false)}>
+          <Pressable style={styles.pickerDialog} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.pickerTitle}>Select Expense Type</Text>
+            <FlatList
+              data={EXPENSE_TYPES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.pickerItem,
+                    form.type === item && styles.pickerItemSelected,
+                  ]}
+                  onPress={() => {
+                    updateField('type', item);
+                    setShowTypePicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.pickerItemText,
+                      form.type === item && styles.pickerItemTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {form.type === item && (
+                    <MaterialIcons name="check" size={20} color={lightColors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ═══ Currency Picker Modal ═══ */}
+      <Modal
+        visible={showCurrencyPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCurrencyPicker(false)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowCurrencyPicker(false)}>
+          <Pressable style={styles.pickerDialog} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.pickerTitle}>Select Currency</Text>
+            <FlatList
+              data={CURRENCIES}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.pickerItem,
+                    form.currency === item.value && styles.pickerItemSelected,
+                  ]}
+                  onPress={() => {
+                    updateField('currency', item.value);
+                    setShowCurrencyPicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.pickerItemText,
+                      form.currency === item.value && styles.pickerItemTextSelected,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                  {form.currency === item.value && (
+                    <MaterialIcons name="check" size={20} color={lightColors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -424,34 +532,112 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Scrollable selectors
-  scrollableSelectorGrid: {
-    paddingRight: spacing.xl,
-    gap: spacing.md,
-  },
-
-  scrollablePill: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: borderRadii.full,
+  // Dropdown button (for Type and Currency)
+  dropdownButton: {
+    height: 56,
     borderWidth: 1,
     borderColor: lightColors.outlineVariant,
+    borderRadius: borderRadii.md,
     backgroundColor: lightColors.surface,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
 
-  scrollablePillSelected: {
-    borderColor: lightColors.primary,
-    backgroundColor: 'rgba(47, 62, 70, 0.1)',
-  },
-
-  scrollablePillText: {
-    fontSize: 14,
+  dropdownButtonText: {
+    fontSize: 16,
     color: lightColors.onSurface,
   },
 
-  scrollablePillTextSelected: {
+  // Segmented button bar (Payment Method & Status)
+  segmentedBar: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: lightColors.outlineVariant,
+    borderRadius: borderRadii.md,
+    overflow: 'hidden',
+  },
+
+  segmentedButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: lightColors.surface,
+    borderRightWidth: 1,
+    borderRightColor: lightColors.outlineVariant,
+  },
+
+  segmentedButtonFirst: {
+    borderTopLeftRadius: borderRadii.md,
+    borderBottomLeftRadius: borderRadii.md,
+  },
+
+  segmentedButtonLast: {
+    borderTopRightRadius: borderRadii.md,
+    borderBottomRightRadius: borderRadii.md,
+    borderRightWidth: 0,
+  },
+
+  segmentedButtonSelected: {
+    backgroundColor: lightColors.primary,
+  },
+
+  segmentedButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: lightColors.onSurface,
+  },
+
+  segmentedButtonTextSelected: {
+    color: lightColors.onPrimary,
+    fontWeight: '600',
+  },
+
+  // Picker modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xxl,
+  },
+
+  pickerDialog: {
+    width: '100%',
+    maxHeight: 400,
+    backgroundColor: lightColors.surface,
+    borderRadius: borderRadii.lg,
+    padding: spacing.xl,
+  },
+
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: lightColors.onSurface,
+    marginBottom: spacing.lg,
+  },
+
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadii.sm,
+  },
+
+  pickerItemSelected: {
+    backgroundColor: 'rgba(47, 62, 70, 0.08)',
+  },
+
+  pickerItemText: {
+    fontSize: 16,
+    color: lightColors.onSurface,
+  },
+
+  pickerItemTextSelected: {
     fontWeight: '600',
     color: lightColors.primary,
   },

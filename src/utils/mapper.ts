@@ -64,6 +64,7 @@ export function mapExpenseToDB(expense: Partial<Expense>): any {
   if (expense.paymentStatus !== undefined) dbRecord.payment_status = expense.paymentStatus;
   if (expense.description !== undefined) dbRecord.description = expense.description;
   if (expense.location !== undefined) dbRecord.location = expense.location;
-  if (expense.receiptUrl !== undefined) dbRecord.receiptUrl = expense.receiptUrl;
+  if (expense.receiptUrl !== undefined) dbRecord['receiptUrl'] = expense.receiptUrl;
+  // Note: isDeleted is not mapped — the DB uses hard deletes
   return dbRecord;
 }

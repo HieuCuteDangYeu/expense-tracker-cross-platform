@@ -114,7 +114,7 @@ export function useExpenses(projectId?: number) {
     []
   );
 
-  // Soft-delete (matching expenseDao.deleteExpense → isDeleted = true)
+  // Hard-delete expense (DB has no isDeleted column)
   const deleteExpense = useCallback(
     async (expenseId: number) => {
       try {
