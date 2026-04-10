@@ -32,6 +32,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { useExpenses } from '../hooks/useExpenses';
@@ -48,6 +49,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetails'>;
 export default function ProjectDetailsScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
   const { expenses, project, isLoading, refetch } = useExpenses(projectId);
+
+  // Refetch when screen regains focus (after add/edit/delete in other screens)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   // Budget calculations (matching Kotlin logic)
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);

@@ -31,6 +31,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { useExpenses } from '../hooks/useExpenses';
 import { formatCurrencyDetailed } from '../utils/formatUtils';
@@ -45,7 +46,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ExpenseDetails'>;
 
 export default function ExpenseDetailsScreen({ navigation, route }: Props) {
   const { expenseId, projectId } = route.params;
-  const { expenses, deleteExpense } = useExpenses(projectId);
+  const { expenses, deleteExpense, refetch } = useExpenses(projectId);
+
+  // Refetch when screen regains focus (after editing in AddExpenseBottomSheet)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   // Find the specific expense
   const expense = expenses.find((e) => e.expenseId === expenseId);
