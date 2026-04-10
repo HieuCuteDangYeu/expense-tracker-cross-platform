@@ -64,7 +64,7 @@ export function useExpenses(projectId?: number) {
 
   // Insert expense (matching expenseDao.insertExpense)
   const addExpense = useCallback(
-    async (expense: Omit<Expense, 'expenseId'>): Promise<Expense | null> => {
+    async (expense: Omit<Expense, 'expenseId' | 'isDeleted'>): Promise<Expense | null> => {
       try {
         setIsSaving(true);
         setError(null);
