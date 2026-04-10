@@ -5,9 +5,9 @@
  *   - projectDetails (flatMapLatest projectId → getProjectWithExpenses)
  *   - allExpenses (from expenseDao.getAllExpenses)
  *   - saveExpense (insert or update via DAO)
- *   - deleteExpense (soft-delete)
+ *   - deleteExpense (hard-delete)
  *
- * Exposes: expenses, project, isLoading, error, addExpense, updateExpense, deleteExpense, refetch
+ * Exposes: expenses, project, isLoading, isSaving, error, addExpense, updateExpense, deleteExpense, refetch
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
@@ -19,6 +19,7 @@ export function useExpenses(projectId?: number) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchExpenses = useCallback(async () => {
@@ -63,8 +64,11 @@ export function useExpenses(projectId?: number) {
 
   // Insert expense (matching expenseDao.insertExpense)
   const addExpense = useCallback(
-    async (expense: Omit<Expense, 'expenseId'>) => {
+    async (expense: Omit<Expense, 'expenseId'>): Promise<Expense | null> => {
       try {
+        setIsSaving(true);
+        setError(null);
+
         const dbExpense = mapExpenseToDB(expense);
         const { data, error: insertErr } = await supabase
           .from('expenses')
@@ -75,12 +79,16 @@ export function useExpenses(projectId?: number) {
         if (insertErr) throw insertErr;
 
         const newExpense = mapExpenseFromDB(data);
-        // Optimistic add
+        // Optimistic add to local state
         setExpenses((prev) => [newExpense, ...prev]);
         return newExpense;
       } catch (err: any) {
-        setError(err.message || 'Failed to add expense');
+        const msg = err.message || 'Failed to add expense';
+        console.error('[useExpenses] addExpense failed:', msg, err.details || '', err.hint || '');
+        setError(msg);
         return null;
+      } finally {
+        setIsSaving(false);
       }
     },
     []
@@ -88,8 +96,11 @@ export function useExpenses(projectId?: number) {
 
   // Update expense (matching expenseDao.updateExpense)
   const updateExpense = useCallback(
-    async (expenseId: number, updates: Partial<Expense>) => {
+    async (expenseId: number, updates: Partial<Expense>): Promise<Expense | null> => {
       try {
+        setIsSaving(true);
+        setError(null);
+
         const dbUpdates = mapExpenseToDB(updates);
         const { data, error: updateErr } = await supabase
           .from('expenses')
@@ -101,14 +112,18 @@ export function useExpenses(projectId?: number) {
         if (updateErr) throw updateErr;
 
         const updatedExpense = mapExpenseFromDB(data);
-        // Optimistic update
+        // Optimistic update in local state
         setExpenses((prev) =>
           prev.map((e) => (e.expenseId === expenseId ? updatedExpense : e))
         );
         return updatedExpense;
       } catch (err: any) {
-        setError(err.message || 'Failed to update expense');
+        const msg = err.message || 'Failed to update expense';
+        console.error('[useExpenses] updateExpense failed:', msg, err.details || '', err.hint || '');
+        setError(msg);
         return null;
+      } finally {
+        setIsSaving(false);
       }
     },
     []
@@ -118,6 +133,9 @@ export function useExpenses(projectId?: number) {
   const deleteExpense = useCallback(
     async (expenseId: number) => {
       try {
+        setIsSaving(true);
+        setError(null);
+
         const { error: delErr } = await supabase
           .from('expenses')
           .delete()
@@ -125,9 +143,14 @@ export function useExpenses(projectId?: number) {
 
         if (delErr) throw delErr;
 
+        // Remove from local state immediately
         setExpenses((prev) => prev.filter((e) => e.expenseId !== expenseId));
       } catch (err: any) {
-        setError(err.message || 'Failed to delete expense');
+        const msg = err.message || 'Failed to delete expense';
+        console.error('[useExpenses] deleteExpense failed:', msg, err.details || '', err.hint || '');
+        setError(msg);
+      } finally {
+        setIsSaving(false);
       }
     },
     []
@@ -137,6 +160,7 @@ export function useExpenses(projectId?: number) {
     expenses,
     project,
     isLoading,
+    isSaving,
     error,
     addExpense,
     updateExpense,

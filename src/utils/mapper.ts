@@ -54,16 +54,27 @@ export function mapExpenseFromDB(row: any): Expense {
 
 export function mapExpenseToDB(expense: Partial<Expense>): any {
   const dbRecord: any = {};
+  // parentProjectId (frontend) → project_id (DB text column)
   if (expense.parentProjectId !== undefined) dbRecord.project_id = String(expense.parentProjectId);
-  if (expense.date !== undefined) dbRecord.expense_date = expense.date;
-  if (expense.amount !== undefined) dbRecord.amount = expense.amount;
+  // date (frontend) → expense_date (DB text column, ISO format YYYY-MM-DD)
+  if (expense.date !== undefined) dbRecord.expense_date = String(expense.date);
+  // amount — explicitly cast to Number to prevent Supabase numeric type-mismatch
+  if (expense.amount !== undefined) dbRecord.amount = Number(expense.amount);
+  // currency (frontend) → currency (DB text column)
   if (expense.currency !== undefined) dbRecord.currency = expense.currency;
+  // type (frontend category) → expense_type (DB text column)
   if (expense.type !== undefined) dbRecord.expense_type = expense.type;
+  // paymentMethod (frontend) → payment_method (DB text column)
   if (expense.paymentMethod !== undefined) dbRecord.payment_method = expense.paymentMethod;
+  // claimant (frontend) → claimant (DB text column)
   if (expense.claimant !== undefined) dbRecord.claimant = expense.claimant;
+  // paymentStatus (frontend) → payment_status (DB text column)
   if (expense.paymentStatus !== undefined) dbRecord.payment_status = expense.paymentStatus;
+  // description (frontend) → description (DB text column, nullable)
   if (expense.description !== undefined) dbRecord.description = expense.description;
+  // location (frontend) → location (DB text column, nullable)
   if (expense.location !== undefined) dbRecord.location = expense.location;
+  // receiptUrl (frontend) → receiptUrl (DB column is camelCase)
   if (expense.receiptUrl !== undefined) dbRecord['receiptUrl'] = expense.receiptUrl;
   // Note: isDeleted is not mapped — the DB uses hard deletes
   return dbRecord;

@@ -29,6 +29,7 @@ import {
   Modal,
   Pressable,
   FlatList,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -70,7 +71,7 @@ interface ExpenseForm {
 
 export default function AddExpenseBottomSheet({ navigation, route }: Props) {
   const { projectId, expenseId } = route.params;
-  const { expenses, addExpense, updateExpense, refetch } = useExpenses(projectId);
+  const { expenses, addExpense, updateExpense, error: hookError, isSaving } = useExpenses(projectId);
 
   const insets = useSafeAreaInsets();
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -90,7 +91,6 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = useCallback((field: keyof ExpenseForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -131,7 +131,6 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
   // Save expense — delegates to hook mutations
   const handleSave = useCallback(async () => {
     if (!validate()) return;
-    setIsSubmitting(true);
     try {
       const payload = {
         parentProjectId: projectId,
@@ -148,21 +147,29 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         isDeleted: false,
       };
 
+      let result;
       if (expenseId) {
         // Edit mode — update via hook
-        await updateExpense(expenseId, payload);
+        result = await updateExpense(expenseId, payload);
       } else {
         // Create mode — insert via hook
-        await addExpense(payload);
+        result = await addExpense(payload);
       }
 
-      navigation.goBack();
-    } catch {
-      // Error is handled by the hook's setError
-    } finally {
-      setIsSubmitting(false);
+      if (result) {
+        navigation.goBack();
+      } else {
+        // Save failed — hook set the error, show alert
+        Alert.alert(
+          'Save Failed',
+          hookError || 'An unexpected error occurred while saving the expense.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Save Failed', err.message || 'An unexpected error occurred.', [{ text: 'OK' }]);
     }
-  }, [form, projectId, expenseId, validate, navigation, addExpense, updateExpense]);
+  }, [form, projectId, expenseId, validate, navigation, addExpense, updateExpense, hookError]);
 
   // Currency symbol for hero display
   const currencySymbol = form.currency === 'EUR' ? '€' : form.currency === 'GBP' ? '£' : '$';
@@ -361,12 +368,12 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.saveButton, isSubmitting && styles.saveDisabled]}
+            style={[styles.saveButton, isSaving && styles.saveDisabled]}
             onPress={handleSave}
-            disabled={isSubmitting}
+            disabled={isSaving}
           >
             <Text style={styles.saveText}>
-              {isSubmitting ? 'Saving...' : expenseId ? 'Update Expense' : 'Save Expense'}
+              {isSaving ? 'Saving...' : expenseId ? 'Update Expense' : 'Save Expense'}
             </Text>
           </TouchableOpacity>
         </View>
