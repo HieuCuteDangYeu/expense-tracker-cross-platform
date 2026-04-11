@@ -28,7 +28,7 @@ export function useProjects() {
       const { data: projectsData, error: projError } = await supabase
         .from('projects')
         .select('*')
-        .order('id', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (projError) throw projError;
 
@@ -42,7 +42,7 @@ export function useProjects() {
       const expensesData = (expensesDataRaw || []).map(mapExpenseFromDB);
 
       // Group expenses by parentProjectId (matching ProjectWithExpenses relation)
-      const expensesByProject = new Map<number, Expense[]>();
+      const expensesByProject = new Map<string, Expense[]>();
       (expensesData || []).forEach((e: Expense) => {
         const list = expensesByProject.get(e.parentProjectId) || [];
         list.push(e);
@@ -133,7 +133,7 @@ export function useProjects() {
 
   // Toggle favorite with optimistic update
   const toggleFavorite = useCallback(
-    async (projectId: number, currentStatus: boolean) => {
+    async (projectId: string, currentStatus: boolean) => {
       // Optimistic update
       setProjects((prev) =>
         prev.map((pw) =>
@@ -173,7 +173,7 @@ export function useProjects() {
 
   // Hard-delete project
   const deleteProject = useCallback(
-    async (projectId: number) => {
+    async (projectId: string) => {
       try {
         setIsLoading(true); // Reusing isLoading for mutation state to prevent flashes
         setError(null);
@@ -181,7 +181,7 @@ export function useProjects() {
         const { error: delErr } = await supabase
           .from('projects')
           .delete()
-          .eq('id', String(projectId));
+          .eq('id', projectId);
 
         if (delErr) throw delErr;
 

@@ -65,7 +65,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
 
   // Navigate to expense details
   const handleExpensePress = useCallback(
-    (expenseId: number) => {
+    (expenseId: string) => {
       navigation.navigate('ExpenseDetails', { expenseId, projectId });
     },
     [navigation, projectId]

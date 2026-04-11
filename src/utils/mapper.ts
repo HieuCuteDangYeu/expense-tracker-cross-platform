@@ -3,7 +3,7 @@ import type { Expense } from '../types/expense';
 
 export function mapProjectFromDB(row: any): Project {
   return {
-    projectId: Number(row.id),
+    projectId: String(row.id),
     projectName: row.project_name || '',
     description: row.description || '',
     startDate: row.start_date || '',
@@ -36,8 +36,8 @@ export function mapProjectToDB(project: Partial<Project>): any {
 
 export function mapExpenseFromDB(row: any): Expense {
   return {
-    expenseId: Number(row.id),
-    parentProjectId: Number(row.project_id),
+    expenseId: String(row.id),
+    parentProjectId: String(row.project_id),
     date: row.expense_date || '',
     amount: Number(row.amount) || 0,
     currency: row.currency || 'USD',
@@ -81,7 +81,7 @@ export function mapExpenseToDB(expense: Partial<Expense>): any {
   // receiptUrl (frontend) → receiptUrl (DB column is camelCase)
   if (expense.receiptUrl !== undefined) dbRecord['receiptUrl'] = expense.receiptUrl;
 
-  // NEVER send id — DB auto-generates it via default
+  // NEVER send id — DB auto-generates it via UUID default
   delete dbRecord.id;
   delete dbRecord.expenseId;
   // isDeleted does not exist in the DB schema — hard deletes only

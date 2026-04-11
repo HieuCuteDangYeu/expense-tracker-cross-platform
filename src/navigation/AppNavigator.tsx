@@ -21,9 +21,9 @@ import AddExpenseBottomSheet from '../screens/AddExpenseBottomSheet';
 // ─── Type Definitions ───────────────────────────────────────────────────────
 export type RootStackParamList = {
   Dashboard: undefined;
-  ProjectDetails: { projectId: number };
-  ExpenseDetails: { expenseId: number; projectId: number };
-  AddExpense: { projectId: number; expenseId?: number };
+  ProjectDetails: { projectId: string };
+  ExpenseDetails: { expenseId: string; projectId: string };
+  AddExpense: { projectId: string; expenseId?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

@@ -7,6 +7,8 @@
  *   - saveExpense (insert or update via DAO)
  *   - deleteExpense (hard-delete)
  *
+ * IDs are strings (UUIDs) to match the native Android app and Supabase schema.
+ *
  * Exposes: expenses, project, isLoading, isSaving, error, addExpense, updateExpense, deleteExpense, refetch
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -15,7 +17,7 @@ import type { Expense } from '../types/expense';
 import type { Project } from '../types/project';
 import { mapExpenseFromDB, mapExpenseToDB, mapProjectFromDB } from '../utils/mapper';
 
-export function useExpenses(projectId?: number) {
+export function useExpenses(projectId?: string) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +38,7 @@ export function useExpenses(projectId?: number) {
       const { data: projData, error: projErr } = await supabase
         .from('projects')
         .select('*')
-        .eq('id', String(projectId))
+        .eq('id', projectId)
         .single();
 
       if (projErr) throw projErr;
@@ -46,7 +48,7 @@ export function useExpenses(projectId?: number) {
       const { data: expData, error: expErr } = await supabase
         .from('expenses')
         .select('*')
-        .eq('project_id', String(projectId))
+        .eq('project_id', projectId)
         .order('expense_date', { ascending: false });
 
       if (expErr) throw expErr;
@@ -70,7 +72,7 @@ export function useExpenses(projectId?: number) {
         setError(null);
 
         const dbExpense = mapExpenseToDB(expense);
-        // id is omitted — DB auto-generates via column default
+        // id is omitted — DB auto-generates via UUID default
         const { data, error: insertErr } = await supabase
           .from('expenses')
           .insert(dbExpense)
@@ -80,7 +82,7 @@ export function useExpenses(projectId?: number) {
         if (insertErr) throw insertErr;
 
         const newExpense = mapExpenseFromDB(data);
-        // Optimistic add to local state
+        // Add to local state immediately
         setExpenses((prev) => [newExpense, ...prev]);
         return newExpense;
       } catch (err: any) {
@@ -97,7 +99,7 @@ export function useExpenses(projectId?: number) {
 
   // Update expense (matching expenseDao.updateExpense)
   const updateExpense = useCallback(
-    async (expenseId: number, updates: Partial<Expense>): Promise<Expense | null> => {
+    async (expenseId: string, updates: Partial<Expense>): Promise<Expense | null> => {
       try {
         setIsSaving(true);
         setError(null);
@@ -108,7 +110,7 @@ export function useExpenses(projectId?: number) {
         const { data, error: updateErr } = await supabase
           .from('expenses')
           .update(dbUpdates)
-          .eq('id', String(expenseId))
+          .eq('id', expenseId)
           .select()
           .single();
 
@@ -134,7 +136,7 @@ export function useExpenses(projectId?: number) {
 
   // Hard-delete expense (DB has no isDeleted column)
   const deleteExpense = useCallback(
-    async (expenseId: number) => {
+    async (expenseId: string) => {
       try {
         setIsSaving(true);
         setError(null);
@@ -142,7 +144,7 @@ export function useExpenses(projectId?: number) {
         const { error: delErr } = await supabase
           .from('expenses')
           .delete()
-          .eq('id', String(expenseId));
+          .eq('id', expenseId);
 
         if (delErr) throw delErr;
 

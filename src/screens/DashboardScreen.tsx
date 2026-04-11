@@ -53,7 +53,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
   // Navigate to ProjectDetails (matching onProjectClick callback)
   const handleProjectPress = useCallback(
-    (projectId: number) => {
+    (projectId: string) => {
       navigation.navigate('ProjectDetails', { projectId });
     },
     [navigation]

@@ -1,9 +1,11 @@
 /**
  * TypeScript interface matching ProjectEntity.kt exactly.
  * Maps 1:1 to the Android Room entity and the Supabase "projects" table.
+ *
+ * IDs are strings (UUIDs) to match the native Android app and Supabase schema.
  */
 export interface Project {
-  projectId: number;
+  projectId: string;
   projectName: string;
   description: string;
   startDate: string;
@@ -19,8 +21,14 @@ export interface Project {
 }
 
 /**
- * Computed property matching ProjectEntity.kt's `formattedId`.
+ * Formats a project ID for display.
+ * For UUIDs, shows a shortened version; for numeric IDs, pads to 4 digits.
  */
-export function getFormattedProjectId(projectId: number): string {
-  return `PRJ-${String(projectId).padStart(4, '0')}`;
+export function getFormattedProjectId(projectId: string): string {
+  // If it looks like a UUID, show the first 8 chars
+  if (projectId.includes('-')) {
+    return `PRJ-${projectId.slice(0, 8).toUpperCase()}`;
+  }
+  // Legacy numeric IDs — pad to 4 digits
+  return `PRJ-${projectId.padStart(4, '0')}`;
 }

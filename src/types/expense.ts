@@ -1,10 +1,12 @@
 /**
  * TypeScript interface matching ExpenseEntity.kt exactly.
  * Maps 1:1 to the Android Room entity and the Supabase "expenses" table.
+ *
+ * IDs are strings (UUIDs) to match the native Android app and Supabase schema.
  */
 export interface Expense {
-  expenseId: number;
-  parentProjectId: number;
+  expenseId: string;
+  parentProjectId: string;
   date: string;
   amount: number;
   currency: string;
