@@ -12,7 +12,8 @@
  * Exposes: expenses, project, isLoading, isSaving, error, addExpense, updateExpense, deleteExpense, refetch
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../services/supabase';
+import { File as ExpoFile } from 'expo-file-system';
 import type { Expense } from '../types/expense';
 import type { Project } from '../types/project';
 import { mapExpenseFromDB, mapExpenseToDB, mapProjectFromDB } from '../utils/mapper';
@@ -134,6 +135,54 @@ export function useExpenses(projectId?: string) {
     []
   );
 
+  // Upload receipt image to Supabase Storage
+  const uploadReceipt = useCallback(
+    async (imageUri: string): Promise<string | null> => {
+      try {
+        setIsSaving(true);
+        setError(null);
+
+        // Generate a unique file path: receipts/{projectId}/{timestamp}.{ext}
+        const ext = imageUri.split('.').pop() || 'jpg';
+        const filePath = `receipts/${projectId}/${Date.now()}.${ext}`;
+        const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+        // Read file as ArrayBuffer using expo-file-system (SDK 54 API)
+        const file = new ExpoFile(imageUri);
+        const arrayBuffer = await file.arrayBuffer();
+
+        // Upload directly via fetch (bypasses RN Blob limitation)
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/receipts/${filePath}`;
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': contentType,
+          },
+          body: arrayBuffer,
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(`Upload failed: ${response.status} ${errorBody}`);
+        }
+
+        // Construct the public URL
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/receipts/${filePath}`;
+        return publicUrl;
+      } catch (err: any) {
+        const msg = err.message || 'Failed to upload receipt';
+        console.error('[useExpenses] uploadReceipt failed:', msg, err.details || '', err.hint || '');
+        setError(msg);
+        return null;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [projectId]
+  );
+
   // Hard-delete expense (DB has no isDeleted column)
   const deleteExpense = useCallback(
     async (expenseId: string) => {
@@ -170,6 +219,7 @@ export function useExpenses(projectId?: string) {
     addExpense,
     updateExpense,
     deleteExpense,
+    uploadReceipt,
     refetch: fetchExpenses,
   };
 }

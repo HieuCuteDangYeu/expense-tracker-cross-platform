@@ -30,9 +30,12 @@ import {
   Pressable,
   FlatList,
   Alert,
+  Image,
+  ActionSheetIOS,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, spacing, borderRadii } from '../theme/theme';
 import { getTodayFormatted } from '../utils/dateUtils';
@@ -71,12 +74,17 @@ interface ExpenseForm {
 
 export default function AddExpenseBottomSheet({ navigation, route }: Props) {
   const { projectId, expenseId } = route.params;
-  const { expenses, addExpense, updateExpense, error: hookError, isSaving } = useExpenses(projectId);
+  const { expenses, addExpense, updateExpense, uploadReceipt, error: hookError, isSaving } = useExpenses(projectId);
 
   const insets = useSafeAreaInsets();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+
+  // receiptImageUri stores the LOCAL URI for preview; receiptUrl stores the uploaded URL
+  const [receiptImageUri, setReceiptImageUri] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
 
   const [form, setForm] = useState<ExpenseForm>({
     amount: '',
@@ -113,6 +121,10 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
           description: existingExpense.description || '',
           location: existingExpense.location || '',
         });
+        if (existingExpense.receiptUrl) {
+          setReceiptImageUri(existingExpense.receiptUrl);
+          setReceiptUrl(existingExpense.receiptUrl);
+        }
       }
     }
   }, [expenseId, expenses]);
@@ -128,10 +140,91 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
+  // Currency symbol for hero display
+  const currencySymbol = form.currency === 'EUR' ? '€' : form.currency === 'GBP' ? '£' : '$';
+
+  // ─── Image Picker Handlers ───
+  const pickImageFromLibrary = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow access to your photo library to attach a receipt.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setReceiptImageUri(result.assets[0].uri);
+      setReceiptUrl(null); // Will be uploaded on save
+    }
+  }, []);
+
+  const pickImageFromCamera = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow camera access to take a receipt photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setReceiptImageUri(result.assets[0].uri);
+      setReceiptUrl(null); // Will be uploaded on save
+    }
+  }, []);
+
+  const showImagePickerOptions = useCallback(() => {
+    const options = ['Take Photo', 'Choose from Library', 'Cancel'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: options.length - 1 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) pickImageFromCamera();
+          else if (buttonIndex === 1) pickImageFromLibrary();
+        }
+      );
+    } else {
+      // Android: use a simple Alert-based picker
+      Alert.alert(
+        'Attach Receipt',
+        'Choose a source',
+        [
+          { text: 'Take Photo', onPress: pickImageFromCamera },
+          { text: 'Choose from Library', onPress: pickImageFromLibrary },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  }, [pickImageFromCamera, pickImageFromLibrary]);
+
+  const removeReceipt = useCallback(() => {
+    setReceiptImageUri(null);
+    setReceiptUrl(null);
+  }, []);
+
   // Save expense — delegates to hook mutations
   const handleSave = useCallback(async () => {
     if (!validate()) return;
     try {
+      let finalReceiptUrl = receiptUrl;
+
+      // If there's a new local image (not yet uploaded), upload it first
+      if (receiptImageUri && !receiptImageUri.startsWith('http')) {
+        setIsUploadingReceipt(true);
+        const uploadedUrl = await uploadReceipt(receiptImageUri);
+        if (!uploadedUrl) {
+          Alert.alert('Upload Failed', hookError || 'Failed to upload receipt image.');
+          setIsUploadingReceipt(false);
+          return;
+        }
+        finalReceiptUrl = uploadedUrl;
+        setIsUploadingReceipt(false);
+      }
+
       const payload = {
         parentProjectId: projectId,
         amount: parseFloat(form.amount),
@@ -143,7 +236,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
         paymentStatus: form.paymentStatus,
         description: form.description.trim() || null,
         location: form.location.trim() || null,
-        receiptUrl: null,
+        receiptUrl: finalReceiptUrl || null,
       };
 
       let result;
@@ -168,10 +261,7 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
     } catch (err: any) {
       Alert.alert('Save Failed', err.message || 'An unexpected error occurred.', [{ text: 'OK' }]);
     }
-  }, [form, projectId, expenseId, validate, navigation, addExpense, updateExpense, hookError]);
-
-  // Currency symbol for hero display
-  const currencySymbol = form.currency === 'EUR' ? '€' : form.currency === 'GBP' ? '£' : '$';
+  }, [form, projectId, expenseId, validate, navigation, addExpense, updateExpense, hookError, receiptImageUri, receiptUrl, uploadReceipt]);
 
   return (
     <KeyboardAvoidingView
@@ -353,6 +443,35 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
             placeholderTextColor={lightColors.textTertiary}
           />
         </View>
+
+        {/* ═══ Receipt Attachment ═══ */}
+        <View style={styles.section}>
+          <Text style={styles.fieldLabel}>Receipt</Text>
+          {receiptImageUri ? (
+            <View>
+              <Image
+                source={{ uri: receiptImageUri }}
+                style={styles.receiptPreview}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.removeReceiptButton}
+                onPress={removeReceipt}
+              >
+                <MaterialIcons name="delete" size={18} color={lightColors.error} />
+                <Text style={styles.removeReceiptText}>Remove Receipt</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.attachReceiptButton}
+              onPress={showImagePickerOptions}
+            >
+              <MaterialIcons name="add-a-photo" size={24} color={lightColors.primary} />
+              <Text style={styles.attachReceiptText}>Attach Receipt</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       {/* ═══ Footer Buttons ═══ */}
@@ -367,12 +486,12 @@ export default function AddExpenseBottomSheet({ navigation, route }: Props) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.saveDisabled]}
+            style={[styles.saveButton, (isSaving || isUploadingReceipt) && styles.saveDisabled]}
             onPress={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingReceipt}
           >
             <Text style={styles.saveText}>
-              {isSaving ? 'Saving...' : expenseId ? 'Update Expense' : 'Save Expense'}
+              {isUploadingReceipt ? 'Uploading...' : isSaving ? 'Saving...' : expenseId ? 'Update Expense' : 'Save Expense'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -699,5 +818,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: lightColors.onPrimary,
+  },
+
+  // Receipt attachment
+  attachReceiptButton: {
+    height: 120,
+    borderWidth: 1,
+    borderColor: lightColors.outlineVariant,
+    borderRadius: borderRadii.md,
+    backgroundColor: lightColors.surfaceVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  attachReceiptText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: lightColors.primary,
+  },
+
+  receiptPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: borderRadii.md,
+  },
+
+  removeReceiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+  },
+
+  removeReceiptText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: lightColors.error,
   },
 });
