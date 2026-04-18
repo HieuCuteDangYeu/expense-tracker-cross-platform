@@ -1,10 +1,8 @@
 /**
- * StatusBadge — mirrors StatusBadge.kt exactly.
- *
- * Pill-shaped badge with uppercase text.
- * Colors determined by getColorsForStatus() from ExpenseUiUtils.kt.
- *
- * Layout: Box with rounded-full bg + bold uppercase Text
+ * StatusBadge — A contextual visual indicator for transaction and project states.
+ * 
+ * Generates a pill-shaped badge with dynamic background and foreground colors
+ * based on the provided status string.
  */
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
@@ -21,9 +19,9 @@ interface StatusBadgeProps {
 
 export default function StatusBadge({
   status,
-  fontSize = 10,          // matching Kotlin default: 10.sp
-  horizontalPadding = 8,  // matching Kotlin default: 8.dp
-  verticalPadding = 2,    // matching Kotlin default: 2.dp
+  fontSize = 10,          // Default typography sizing
+  horizontalPadding = 8,  // Standard horizontal spacing
+  verticalPadding = 2,    // Compact vertical spacing
   style,
 }: StatusBadgeProps) {
   const { bgColor, textColor } = getColorsForStatus(status);
@@ -57,10 +55,10 @@ export default function StatusBadge({
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: borderRadii.full, // RoundedCornerShape(percent = 50)
+    borderRadius: borderRadii.full,
     alignSelf: 'flex-start',
   },
   text: {
-    fontWeight: '700', // FontWeight.Bold
+    fontWeight: '700',
   },
 });

@@ -1,15 +1,9 @@
 /**
- * useExpenses — replaces ExpenseViewModel.kt data-fetching logic (online-first).
+ * useExpenses — Custom hook for managing project-specific expenses via Supabase.
+ * Handles fetching, creating, updating, and deleting expenses, as well as
+ * receipt image uploads to cloud storage.
  *
- * Kotlin logic ported:
- *   - projectDetails (flatMapLatest projectId → getProjectWithExpenses)
- *   - allExpenses (from expenseDao.getAllExpenses)
- *   - saveExpense (insert or update via DAO)
- *   - deleteExpense (hard-delete)
- *
- * IDs are strings (UUIDs) to match the native Android app and Supabase schema.
- *
- * Exposes: expenses, project, isLoading, isSaving, error, addExpense, updateExpense, deleteExpense, refetch
+ * All IDs are UUID strings to ensure cross-platform compatibility.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../services/supabase';
@@ -35,7 +29,7 @@ export function useExpenses(projectId?: string) {
       setIsLoading(true);
       setError(null);
 
-      // Fetch project (matching projectDao.getProjectWithExpenses)
+      // Fetch associated project metadata
       const { data: projData, error: projErr } = await supabase
         .from('projects')
         .select('*')
@@ -45,7 +39,7 @@ export function useExpenses(projectId?: string) {
       if (projErr) throw projErr;
       setProject(mapProjectFromDB(projData));
 
-      // Fetch expenses for this project (matching the @Relation query)
+      // Fetch all expenses linked to this project, ordered by date (newest first)
       const { data: expData, error: expErr } = await supabase
         .from('expenses')
         .select('*')
@@ -65,7 +59,7 @@ export function useExpenses(projectId?: string) {
     fetchExpenses();
   }, [fetchExpenses]);
 
-  // Insert expense (matching expenseDao.insertExpense)
+  // Insert a new expense record into the cloud database
   const addExpense = useCallback(
     async (expense: Omit<Expense, 'expenseId' | 'isDeleted'>): Promise<Expense | null> => {
       try {
@@ -98,7 +92,7 @@ export function useExpenses(projectId?: string) {
     []
   );
 
-  // Update expense (matching expenseDao.updateExpense)
+  // Update an existing expense record by ID
   const updateExpense = useCallback(
     async (expenseId: string, updates: Partial<Expense>): Promise<Expense | null> => {
       try {

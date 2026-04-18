@@ -1,26 +1,7 @@
 /**
- * ProjectDetailsScreen — mirrors ProjectDetailsScreen.kt exactly.
- *
- * Layout from Kotlin:
- *   Scaffold(FAB = Add Expense)
- *     Column(fillMaxSize)
- *       Surface(header, color=surface)
- *         Column(padding 16/0/16/16)
- *           Text(projectName, 24.sp, Bold, primary)
- *           Text("Project ID: PRJ-XXXX", 14.sp, textSecondary)
- *           Spacer(8.dp)
- *           Surface(Budget Summary Box, rounded=12, primary/5% bg, primary/10% border)
- *             Column(padding=16)
- *               Row(SpaceBetween, Bottom)
- *                 Column: "TOTAL SPENT"(12.sp lbl) + amount(24.sp Bold primary)
- *                 Column(End): "BUDGET"(12.sp lbl) + amount(18.sp Med onSurfaceVariant)
- *               Spacer(8.dp)
- *               ProgressBar(10.dp height, primary)
- *               Text("X% of budget used", 12.sp, End, textSecondary)
- *       Column(padding=24)
- *         Row("Recent Transactions" + "View All" primary)
- *         Spacer(16.dp)
- *         LazyColumn(spacedBy=12) → ExpenseItemCard items
+ * ProjectDetailsScreen — Detailed view of a specific project.
+ * Displays project identity, a visual budget summary with progress tracking,
+ * and a scrollable list of recent transactions.
  */
 import React, { useCallback } from 'react';
 import {
@@ -48,22 +29,31 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetails'>;
 
 export default function ProjectDetailsScreen({ navigation, route }: Props) {
   const { projectId } = route.params;
+  
+  // Fetch specific project data and its associated expense list
   const { expenses, project, isLoading, refetch } = useExpenses(projectId);
 
-  // Refetch when screen regains focus (after add/edit/delete in other screens)
+  /**
+   * Ensure data is synchronized when the screen is focused.
+   */
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch])
   );
 
-  // Budget calculations (matching Kotlin logic)
+  /**
+   * Budget and Progress Calculations
+   * Derived from aggregated expense amounts vs project budget.
+   */
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
   const budget = project?.budget ?? 0;
   const progress = budget > 0 ? Math.min(totalSpent / budget, 1) : 0;
   const percentage = Math.round(progress * 100);
 
-  // Navigate to expense details
+  /**
+   * Navigation handler for drill-down into expense details.
+   */
   const handleExpensePress = useCallback(
     (expenseId: string) => {
       navigation.navigate('ExpenseDetails', { expenseId, projectId });
@@ -71,15 +61,19 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
     [navigation, projectId]
   );
 
-  // Navigate to AddExpense modal
+  /**
+   * Open the 'Add Expense' modal contextually for the current project.
+   */
   const handleAddExpense = useCallback(() => {
     navigation.navigate('AddExpense', { projectId });
   }, [navigation, projectId]);
 
+  // Initial loading guard to prevent flashing empty UI
   if (isLoading && !project) {
     return <FullScreenLoadingIndicator />;
   }
 
+  // Error boundary for missing project entries
   if (!project) {
     return (
       <View style={styles.container}>
@@ -91,7 +85,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
     );
   }
 
-  // Sort expenses by date descending (matching Kotlin .sortedByDescending { it.date })
+  // Sort transactions chronologically (newest first) for consistent display
   const sortedExpenses = [...expenses].sort((a, b) =>
     b.date.localeCompare(a.date)
   );
@@ -110,26 +104,24 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
         }
         ListHeaderComponent={
           <>
-            {/* ─── Header Section ─── */}
-            {/* Surface(color=surface) → Column(padding 16/0/16/16) */}
+            {/* Project Header and Identity */}
             <View style={styles.headerSurface}>
               <Text style={styles.projectName}>{project.projectName}</Text>
               <Text style={styles.projectIdText}>
                 Project ID: {getFormattedProjectId(project.projectId)}
               </Text>
 
-              {/* ─── Budget Summary Box ─── */}
-              {/* Surface(rounded=12, primary/5% bg, primary/10% border) */}
+              {/* Visual Budget Summary Card */}
               <View style={styles.budgetBox}>
                 <View style={styles.budgetRow}>
-                  {/* Left: TOTAL SPENT */}
+                  {/* Expense Accumulation Display */}
                   <View>
                     <Text style={styles.budgetLabel}>TOTAL SPENT</Text>
                     <Text style={styles.budgetAmountPrimary}>
                       {formatCurrency(totalSpent)}
                     </Text>
                   </View>
-                  {/* Right: BUDGET */}
+                  {/* Allocated Budget Display */}
                   <View style={styles.budgetRight}>
                     <Text style={styles.budgetLabel}>BUDGET</Text>
                     <Text style={styles.budgetAmountSecondary}>
@@ -138,7 +130,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
                   </View>
                 </View>
 
-                {/* Progress Bar (10.dp height) */}
+                {/* Progress Tracking Bar */}
                 <View style={styles.progressTrack}>
                   <View
                     style={[
@@ -157,7 +149,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
               </View>
             </View>
 
-            {/* ─── Recent Transactions Header ─── */}
+            {/* Transaction List Context Header */}
             <View style={styles.transactionsHeader}>
               <Text style={styles.transactionsTitle}>Recent Transactions</Text>
               <TouchableOpacity>
@@ -187,8 +179,7 @@ export default function ProjectDetailsScreen({ navigation, route }: Props) {
         )}
       />
 
-      {/* ─── FAB ─── */}
-      {/* FloatingActionButton(primary, onPrimary, CircleShape) */}
+      {/* Primary Action Button (Add Expense) */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -205,121 +196,101 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: lightColors.background,
   },
-
   headerSurface: {
     backgroundColor: lightColors.background,
-    paddingTop: 0,                     // top=0.dp
-    paddingBottom: spacing.xl,         // bottom=16.dp
+    paddingTop: 0,
+    paddingBottom: spacing.xl,
     paddingHorizontal: spacing.xxl,
   },
-
   projectName: {
-    fontSize: 24,                      // 24.sp
-    fontWeight: '700',                 // FontWeight.Bold
-    color: lightColors.primary,        // primary
+    fontSize: 24,
+    fontWeight: '700',
+    color: lightColors.primary,
   },
-
   projectIdText: {
-    fontSize: 14,                      // 14.sp
-    color: lightColors.textSecondary,  // textSecondary
-    marginTop: 4,                      // .padding(top = 4.dp)
+    fontSize: 14,
+    color: lightColors.textSecondary,
+    marginTop: 4,
   },
-
-  // Budget Summary Box
   budgetBox: {
-    marginTop: spacing.md,             // Spacer(8.dp)
-    backgroundColor: 'rgba(47, 62, 70, 0.05)', // primary.copy(alpha = 0.05f)
+    marginTop: spacing.md,
+    backgroundColor: 'rgba(47, 62, 70, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(47, 62, 70, 0.1)',      // primary.copy(alpha = 0.1f)
-    borderRadius: borderRadii.lg,               // RoundedCornerShape(12.dp)
-    padding: spacing.xl,                         // .padding(16.dp)
+    borderColor: 'rgba(47, 62, 70, 0.1)',
+    borderRadius: borderRadii.lg,
+    padding: spacing.xl,
   },
-
   budgetRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',            // verticalAlignment = Bottom
+    alignItems: 'flex-end',
   },
-
   budgetRight: {
-    alignItems: 'flex-end',            // horizontalAlignment = End
+    alignItems: 'flex-end',
   },
-
   budgetLabel: {
-    fontSize: 12,                      // 12.sp
-    fontWeight: '600',                 // FontWeight.SemiBold
-    color: lightColors.textSecondary,  // textSecondary
-    letterSpacing: 0.5,                // 0.5.sp
+    fontSize: 12,
+    fontWeight: '600',
+    color: lightColors.textSecondary,
+    letterSpacing: 0.5,
   },
-
   budgetAmountPrimary: {
-    fontSize: 24,                      // 24.sp
-    fontWeight: '700',                 // FontWeight.Bold
+    fontSize: 24,
+    fontWeight: '700',
     color: lightColors.primary,
   },
-
   budgetAmountSecondary: {
-    fontSize: 18,                      // 18.sp
-    fontWeight: '500',                 // FontWeight.Medium
+    fontSize: 18,
+    fontWeight: '500',
     color: lightColors.onSurfaceVariant,
   },
-
-  // Progress bar (10.dp height, CircleShape)
   progressTrack: {
     width: '100%',
-    height: 10,                        // .height(10.dp)
+    height: 10,
     backgroundColor: lightColors.surfaceVariant,
-    borderRadius: borderRadii.full,    // CircleShape
-    marginTop: spacing.md,             // Spacer(8.dp)
+    borderRadius: borderRadii.full,
+    marginTop: spacing.md,
     overflow: 'hidden',
   },
-
   progressFill: {
     height: 10,
     borderRadius: borderRadii.full,
   },
-
   budgetPercentText: {
-    fontSize: 12,                      // 12.sp
+    fontSize: 12,
     color: lightColors.textSecondary,
-    textAlign: 'right',                // .align(End)
-    marginTop: spacing.md,             // .padding(top = 8.dp)
+    textAlign: 'right',
+    marginTop: spacing.md,
   },
-
   transactionsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,         // Spacer(16.dp)
+    paddingBottom: spacing.xl,
     paddingHorizontal: spacing.xxl,
   },
-
   transactionsTitle: {
-    fontSize: 18,                      // 18.sp
-    fontWeight: '700',                 // FontWeight.Bold
+    fontSize: 18,
+    fontWeight: '700',
     color: lightColors.onSurface,
   },
-
   viewAllText: {
-    fontSize: 14,                      // 14.sp
-    fontWeight: '600',                 // FontWeight.SemiBold
+    fontSize: 14,
+    fontWeight: '600',
     color: lightColors.primary,
   },
-
   listContent: {
     paddingTop: spacing.xl,
     paddingBottom: 100,
   },
-
-  // FAB (matching FloatingActionButton)
   fab: {
     position: 'absolute',
     bottom: spacing.xxl,
     right: spacing.xxl,
     width: 56,
     height: 56,
-    borderRadius: 28,                  // CircleShape
+    borderRadius: 28,
     backgroundColor: lightColors.primary,
     justifyContent: 'center',
     alignItems: 'center',

@@ -1,20 +1,15 @@
 /**
- * AddExpenseBottomSheet — mirrors AddExpenseBottomSheet.kt.
- *
- * Presented as a stack modal (matching presentation: 'modal' in navigator).
- *
- * Form fields (from Kotlin source):
- *   - Amount (number, required)
- *   - Currency (dropdown: USD/EUR/GBP)
- *   - Expense Type (dropdown picker)
- *   - Date picker
- *   - Payment Method (segmented button bar: Cash/Card/Transfer/Cheque)
- *   - Claimant (text, required)
- *   - Payment Status (segmented: Paid/Pending/Reimbursed)
- *   - Description (multiline, optional)
- *   - Location (text, optional)
- *
- * Footer: Cancel + Save buttons
+ * AddExpenseBottomSheet — Comprehensive entry form for creating and updating expenses.
+ * 
+ * Features:
+ * - High-precision financial input with currency localization.
+ * - Categorical classification for reporting.
+ * - Temporal tracking via interactive date picking.
+ * - Multi-mode payment method and status selection.
+ * - Narrative and geographic metadata support.
+ * - Media attachment system for digital receipt capture and cloud storage.
+ * 
+ * This component acts as a transactional modal layer for data ingestion.
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import {

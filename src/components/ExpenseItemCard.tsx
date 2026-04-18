@@ -1,19 +1,11 @@
 /**
- * ExpenseItemCard — mirrors ExpenseItemCard.kt exactly.
- *
- * Layout from Kotlin:
- *   Surface(shape=12.dp, border=1.dp outlineVariant, color=surface)
- *     Row(padding=12.dp, verticalAlignment=CenterVertically)
- *       Box(40×40, bg=typeColor, rounded=8.dp) → Icon(24.dp, tint=typeTint)
- *       Spacer(16.dp)
- *       Column(weight=1f)
- *         Row(fillMaxWidth, SpaceBetween, Top)
- *           Text(description||type, 14.sp, Bold, onSurface, maxLines=1, ellipsis)
- *           Text(formattedAmount, 14.sp, Bold, onSurface)
- *         Spacer(2.dp)
- *         Row(fillMaxWidth, SpaceBetween, CenterVertically)
- *           Text("date • type", 12.sp, textSecondary)
- *           StatusBadge(paymentStatus)
+ * ExpenseItemCard — A specialized list item component for transaction entries.
+ * 
+ * Featuring:
+ * - Category-coded visual iconography.
+ * - Unified financial display (description/category + amount).
+ * - Metadata subtitle with temporal and classification data.
+ * - Integrated status tracking badge.
  */
 import React from 'react';
 import {

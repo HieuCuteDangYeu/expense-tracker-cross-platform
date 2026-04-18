@@ -1,16 +1,8 @@
 /**
- * ProjectCard — mirrors ProjectCard.kt.
- *
- * Layout from Kotlin:
- *   Surface(shape=8.dp, border=1.dp outlineVariant, color=surface)
- *     Column(padding=16.dp)
- *       Row(SpaceBetween, Top)
- *         Column: projectName (16.sp Bold) + ID (10.sp Medium, textTertiary)
- *         StatusBadge pill (status)
- *       Spacer(12.dp)
- *       Row(SpaceBetween): "Budget Used: X%" + "$spent / $budget" (12.sp, textSecondary)
- *       Spacer(4.dp)
- *       ProgressBar (8.dp height, primary or red if >80%)
+ * ProjectCard — A summarize view for a specific project.
+ * 
+ * Displays project identity, a visual budget utilization progress bar,
+ * and current operational status. Optimized for grid and list dashboard layouts.
  */
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
@@ -40,12 +32,12 @@ export default function ProjectCard({
   onToggleFavorite,
   style,
 }: ProjectCardProps) {
-  // Calculate budget usage — matching Kotlin logic
+  // Aggregated financial tracking logic.
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
   const budgetPercentage = project.budget > 0 ? totalSpent / project.budget : 0;
   const budgetPercentageInt = Math.round(budgetPercentage * 100);
 
-  // Status colors — matching Kotlin when block
+  // Contextual status visualization mappings.
   const statusColors = getProjectStatusColors(project.status);
 
   // Progress bar color — red if >80%
@@ -118,7 +110,7 @@ export default function ProjectCard({
 }
 
 /**
- * Status → color mapping matching Kotlin's when block in ProjectCard.kt.
+ * Maps project lifecycle status to theme-compliant color tokens.
  */
 function getProjectStatusColors(status: string): {
   bg: string;

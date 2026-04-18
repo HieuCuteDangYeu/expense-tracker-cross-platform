@@ -1,19 +1,6 @@
 /**
- * DashboardScreen — mirrors DashboardScreen.kt exactly.
- *
- * Layout from Kotlin:
- *   Column(fillMaxSize, background)
- *     Surface(sticky search bar, shadow=1.dp)
- *       Row(padding start/end=16, bottom=12, centerVertically)
- *         OutlinedTextField(weight=1, search, rounded=8.dp)
- *         Spacer(8.dp)
- *         Button("Filter", primary, rounded=8.dp)
- *     LazyColumn(contentPadding=16, spacedBy=12)
- *       if empty → EmptyStateMessage
- *       else → items(projects) { ProjectCard }
- *
- * Data: useProjects() hook replaces ProjectViewModel collect.
- * Navigation: onProjectClick → navigate('ProjectDetails')
+ * DashboardScreen — Main entry point displaying a searchable and filterable list of projects.
+ * Features a sticky search bar, advanced filtering capabilities, and a dynamic project list.
  */
 import React, { useCallback, useState } from 'react';
 import {
@@ -39,6 +26,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 export default function DashboardScreen({ navigation }: Props) {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  
+  // Data ingestion via custom hook with built-in search/filter logic
   const {
     projects,
     isLoading,
@@ -51,7 +40,9 @@ export default function DashboardScreen({ navigation }: Props) {
     toggleFavorite,
   } = useProjects();
 
-  // Navigate to ProjectDetails (matching onProjectClick callback)
+  /**
+   * Navigate to the project details view.
+   */
   const handleProjectPress = useCallback(
     (projectId: string) => {
       navigation.navigate('ProjectDetails', { projectId });
@@ -59,14 +50,14 @@ export default function DashboardScreen({ navigation }: Props) {
     [navigation]
   );
 
-  // Initial loading state
+  // Show a full-screen loading state on initial render
   if (isLoading && projects.length === 0) {
     return <FullScreenLoadingIndicator />;
   }
 
   return (
     <View style={styles.container}>
-      {/* ─── Sticky Search & Filter Bar ─── */}
+      {/* Search & Filter Header Section */}
       <View style={styles.searchBarSurface}>
         <View style={styles.searchRow}>
           <View style={styles.searchInputContainer}>
@@ -95,7 +86,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* ─── Advanced Search Panel ─── */}
+      {/* Advanced Filtering Options Panel */}
       <AdvancedSearchPanel
         visible={isFilterVisible}
         filterState={filterState}
@@ -108,7 +99,7 @@ export default function DashboardScreen({ navigation }: Props) {
         onClearFilters={() => setFilterState({})}
       />
 
-      {/* ─── Project List ─── */}
+      {/* Main Project Feed */}
       <FlatList
         data={projects}
         keyExtractor={(item) => String(item.project.projectId)}
@@ -149,79 +140,64 @@ export default function DashboardScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: lightColors.background,     // background = #F8F9FA
+    backgroundColor: lightColors.background,
   },
-
-  // Surface(color=surface, shadow=1.dp)
   searchBarSurface: {
     backgroundColor: lightColors.surface,
-    elevation: 1,                                 // shadowElevation = 1.dp
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-
-  // Row(padding start=16, end=16, bottom=12, centerVertically)
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,                // start/end = 16.dp
-    paddingBottom: spacing.lg,                    // bottom = 12.dp
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
   },
-
-  // OutlinedTextField(weight=1f, rounded=8.dp, singleLine)
   searchInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     height: 44,
     borderWidth: 1,
-    borderColor: lightColors.outline,             // unfocusedBorderColor = outline
-    borderRadius: borderRadii.md,                 // RoundedCornerShape(8.dp)
+    borderColor: lightColors.outline,
+    borderRadius: borderRadii.md,
     backgroundColor: lightColors.surface,
     paddingHorizontal: spacing.lg,
   },
-
   searchIcon: {
     marginRight: spacing.md,
   },
-
   searchInput: {
     flex: 1,
-    fontSize: typography.bodyMedium.fontSize,     // bodyMedium
+    fontSize: typography.bodyMedium.fontSize,
     color: lightColors.onSurface,
     height: '100%',
     padding: 0,
   },
-
-  // Button(primary, rounded=8.dp, ContentPadding h=16, v=8)
   filterButton: {
-    marginLeft: spacing.md,                       // Spacer(8.dp)
+    marginLeft: spacing.md,
     backgroundColor: lightColors.primary,
-    borderRadius: borderRadii.md,                 // RoundedCornerShape(8.dp)
-    paddingHorizontal: spacing.xl,                // horizontal = 16.dp
-    paddingVertical: spacing.md,                  // vertical = 8.dp
+    borderRadius: borderRadii.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   filterButtonText: {
     color: lightColors.onPrimary,
-    fontSize: typography.labelMedium.fontSize,    // labelMedium
-    fontWeight: '700',                            // FontWeight.Bold
+    fontSize: typography.labelMedium.fontSize,
+    fontWeight: '700',
   },
-
-  // LazyColumn(contentPadding=16.dp, spacedBy=12.dp)
   listContent: {
-    padding: spacing.xl,                          // contentPadding = 16.dp
-    paddingBottom: 100,                           // Extra padding for FAB clearance
+    padding: spacing.xl,
+    paddingBottom: 100, // Safe area padding for interactions
   },
-
   separator: {
-    height: spacing.lg,                           // spacedBy = 12.dp
+    height: spacing.lg,
   },
-
   emptyState: {
     marginTop: spacing.xl,
   },

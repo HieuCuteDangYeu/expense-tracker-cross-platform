@@ -1,3 +1,8 @@
+/**
+ * useProjects — Custom hook for managing the global project list and associated expenses.
+ * Implements complex client-side filtering, searching, and optimistic UI updates
+ * for project favorites.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../services/supabase';
 import type { Project } from '../types/project';
@@ -24,7 +29,7 @@ export function useProjects() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch all non-deleted projects (matching ProjectDao.filterProjects)
+      // Fetch all active projects from Supabase, sorted by creation date (newest first)
       const { data: projectsData, error: projError } = await supabase
         .from('projects')
         .select('*')
@@ -32,7 +37,7 @@ export function useProjects() {
 
       if (projError) throw projError;
 
-      // Fetch all non-deleted expenses (matching ExpenseDao.getAllExpenses)
+      // Fetch all expenses to allow for project-level aggregate calculations
       const { data: expensesDataRaw, error: expError } = await supabase
         .from('expenses')
         .select('*');
@@ -41,7 +46,7 @@ export function useProjects() {
 
       const expensesData = (expensesDataRaw || []).map(mapExpenseFromDB);
 
-      // Group expenses by parentProjectId (matching ProjectWithExpenses relation)
+      // Group expenses by their parent project ID for efficient lookups during project card rendering
       const expensesByProject = new Map<string, Expense[]>();
       (expensesData || []).forEach((e: Expense) => {
         const list = expensesByProject.get(e.parentProjectId) || [];
@@ -49,7 +54,7 @@ export function useProjects() {
         expensesByProject.set(e.parentProjectId, list);
       });
 
-      // Build ProjectWithExpenses list
+      // Map raw database rows to the domain ProjectWithExpenses model including nested expense arrays
       const result: ProjectWithExpenses[] = (projectsData || []).map((row: any) => {
         const p = mapProjectFromDB(row);
         return {
@@ -76,7 +81,7 @@ export function useProjects() {
     return Array.from(new Set(mgrs));
   }, [projects]);
 
-  // Client-side search and complex filter
+  // Apply client-side search and multi-criteria advanced filtering to the local project state
   const filteredProjects = projects.filter((pw) => {
     // 1. Text Search filtering
     let matchesSearch = true;
@@ -131,7 +136,7 @@ export function useProjects() {
 
 
 
-  // Toggle favorite with optimistic update
+  // Toggle project favorite status with optimistic UI updates to ensure immediate feedback
   const toggleFavorite = useCallback(
     async (projectId: string, currentStatus: boolean) => {
       // Optimistic update
@@ -171,7 +176,7 @@ export function useProjects() {
     []
   );
 
-  // Hard-delete project
+  // Permanently delete a project from the cloud database; cascading deletes handle child expenses via DB constraints
   const deleteProject = useCallback(
     async (projectId: string) => {
       try {

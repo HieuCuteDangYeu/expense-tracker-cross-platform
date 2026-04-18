@@ -1,14 +1,8 @@
 /**
- * EmptyStateMessage — mirrors EmptyStateMessage.kt exactly.
- *
- * Centered card with optional icon, title, and description.
- *
- * Layout from Kotlin:
- *   Surface(shape=12.dp, border=1.dp outlineVariant, color=surface)
- *     Column(padding=48.dp, centered, verticalSpacing=12.dp)
- *       Icon (48.dp, textSecondary)
- *       Title Text (18.sp, SemiBold, onSurface)
- *       Description Text (14.sp, textSecondary, max 3 lines)
+ * EmptyStateMessage — A centered placeholder component used when data lists are empty.
+ * 
+ * Provides a clear visual cue with an optional icon, title, and descriptive text
+ * to guide users toward an initial action or explain the absence of data.
  */
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';

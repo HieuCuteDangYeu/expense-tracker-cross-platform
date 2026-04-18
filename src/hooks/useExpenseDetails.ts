@@ -1,9 +1,9 @@
 /**
- * Placeholder for useExpenseDetails hook — will replace ExpenseDetailsViewModel.kt.
- *
- * Responsibilities from Android:
- *   - Single expense detail by ID
- *   - deleteExpense()
+ * Hook for managing specific expense detail state.
+ * 
+ * Target Responsibilities:
+ * - Isolation of single transaction data retrieval.
+ * - Local and remote state synchronization for detail views.
  */
 export function useExpenseDetails(_expenseId?: number) {
   // TODO: Implement

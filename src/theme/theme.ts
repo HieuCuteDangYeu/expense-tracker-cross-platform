@@ -1,10 +1,9 @@
 /**
- * Design system extracted exactly from the Android codebase:
- *   - Color.kt  → all hex codes
- *   - Type.kt   → typography scale
- *   - Theme.kt  → light/dark scheme mapping + extended semantic colors
- *
- * NO COLORS WERE INVENTED. Every value traces back to a Kotlin source constant.
+ * Core Design System: Theme, Typography, and Tokens.
+ * 
+ * Provides a centralized source of truth for the application's visual identity,
+ * including high-fidelity color schemes, responsive typography scales, 
+ * consistent spacing grids, and component-ready border radii.
  */
 
 // ─── Brand Primary (Color.kt) ──────────────────────────────────────────────────

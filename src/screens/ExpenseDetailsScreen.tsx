@@ -1,24 +1,7 @@
 /**
- * ExpenseDetailsScreen — mirrors ExpenseDetailsScreen.kt exactly.
- *
- * Layout from Kotlin (scrollable Column):
- *   Surface(header, centered)
- *     Column(padding=24, centered)
- *       Box(56.dp, CircleShape, typeColor bg) → Icon(28.dp)
- *       Spacer(16)
- *       Text(amount, 36.sp Bold)
- *       Spacer(8)
- *       StatusBadge(12.sp, h=16, v=4)
- *   Spacer(8)
- *   Surface(detail card)
- *     Column(padding=24)
- *       DetailRow("Category", type)
- *       Divider / DetailRow("Date", date)
- *       Divider / DetailRow("Location", location) [optional]
- *       Divider / DetailRow("Payment Method", "Paid via X")
- *       Divider / DetailRow("Claimant", claimant)
- *   [if description] Surface → Column(padding=24): Title + desc text
- *   [if receipt]     Surface → Column(padding=24): Title + Image(220.dp, rounded=12)
+ * ExpenseDetailsScreen — Detailed view for an individual expense transaction.
+ * Displays financial data (amount, currency), status badges, and comprehensive metadata
+ * including location, payment method, claimant, and receipts.
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import {
@@ -28,7 +11,6 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -46,21 +28,35 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ExpenseDetails'>;
 
 export default function ExpenseDetailsScreen({ navigation, route }: Props) {
   const { expenseId, projectId } = route.params;
+
+  /**
+   * Data Layer Interface
+   * Uses the centralized useExpenses hook to manage transaction state.
+   */
   const { expenses, deleteExpense, refetch } = useExpenses(projectId);
 
-  // Refetch when screen regains focus (after editing in AddExpenseBottomSheet)
+  /**
+   * Lifecycle Management
+   * Triggers a refetch when returning to this screen from an edit action.
+   */
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch])
   );
 
-  // Find the specific expense
+  /**
+   * Primary Identification
+   * Locates the specific transaction from the cached or fetched expense list.
+   */
   const expense = expenses.find((e) => e.expenseId === expenseId);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Add header buttons (Edit + Delete)
+  /**
+   * Navigation Header Configuration
+   * Dynamically injects context-aware action buttons (Edit/Delete).
+   */
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -75,7 +71,9 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
           >
             <MaterialIcons name="edit" size={22} color={lightColors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowDeleteDialog(true)}>
+          <TouchableOpacity 
+            onPress={() => setShowDeleteDialog(true)}
+          >
             <MaterialIcons name="delete" size={22} color={lightColors.error} />
           </TouchableOpacity>
         </View>
@@ -83,7 +81,10 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
     });
   }, [navigation, projectId, expenseId]);
 
-  // Handle delete
+  /**
+   * Persistent Storage Deletion
+   * Executes the deletion via the service layer and rolls back navigation.
+   */
   const handleDelete = useCallback(async () => {
     setShowDeleteDialog(false);
     await deleteExpense(expenseId);
@@ -94,6 +95,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
     return <FullScreenLoadingIndicator />;
   }
 
+  // Visual configuration based on expense category
   const { iconName, bgColor, tintColor } = getIconAndColorsForType(expense.type);
 
   return (
@@ -102,10 +104,9 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ─── Amount Header ─── */}
-        {/* Surface(color=surface) → Column(padding=24, centered) */}
+        {/* Transaction Identity and Financial Header */}
         <View style={styles.headerSurface}>
-          {/* Category icon pill — Box(56.dp, CircleShape, bgColor) */}
+          {/* Categorical Visual Pill */}
           <View style={[styles.categoryIcon, { backgroundColor: bgColor }]}>
             <MaterialIcons
               name={iconName as keyof typeof MaterialIcons.glyphMap}
@@ -114,12 +115,12 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
             />
           </View>
 
-          {/* Amount — 36.sp Bold onSurface */}
+          {/* Primary Financial Figure */}
           <Text style={styles.amount}>
             {formatCurrencyDetailed(expense.amount, expense.currency)}
           </Text>
 
-          {/* StatusBadge(12.sp, h=16, v=4) */}
+          {/* Verification / Payment Status */}
           <StatusBadge
             status={expense.paymentStatus}
             fontSize={12}
@@ -128,8 +129,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
           />
         </View>
 
-        {/* ─── Details Card ─── */}
-        {/* Surface(color=surface) → Column(padding=24) */}
+        {/* Structured Metadata Layer */}
         <View style={styles.detailsCard}>
           <DetailRow label="Category" value={expense.type} />
           <View style={styles.divider} />
@@ -151,7 +151,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
           <DetailRow label="Claimant" value={expense.claimant} />
         </View>
 
-        {/* ─── Description Section ─── */}
+        {/* Descriptive Narrative (Optional) */}
         {expense.description ? (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Description</Text>
@@ -159,7 +159,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {/* ─── Receipt Section ─── */}
+        {/* Proof of Transaction (Optional) */}
         {expense.receiptUrl ? (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Receipt</Text>
@@ -174,7 +174,7 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Confirmation Workflow for Destructive Actions */}
       <DeleteConfirmationDialog
         visible={showDeleteDialog}
         title="Delete Expense"
@@ -186,7 +186,9 @@ export default function ExpenseDetailsScreen({ navigation, route }: Props) {
   );
 }
 
-/** DetailRow — matching the private DetailRow composable */
+/** 
+ * DetailRow — Sub-component for consistent metadata labeling and value pairing.
+ */
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.detailRow}>
@@ -201,92 +203,72 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: lightColors.background,
   },
-
   scrollContent: {
     paddingBottom: spacing.xxl,
   },
-
-  // Amount header — Surface(color=surface), Column(padding=24, centered)
   headerSurface: {
     backgroundColor: lightColors.surface,
-    padding: spacing.xxl,               // .padding(24.dp)
+    padding: spacing.xxl,
     alignItems: 'center',
   },
-
-  // Box(56.dp, CircleShape, bgColor)
   categoryIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,                   // CircleShape
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,           // Spacer(16.dp)
+    marginBottom: spacing.xl,
   },
-
-  // 36.sp Bold onSurface
   amount: {
     fontSize: 36,
     fontWeight: '700',
     color: lightColors.onSurface,
-    marginBottom: spacing.md,           // Spacer(8.dp)
+    marginBottom: spacing.md,
   },
-
-  // Details card
   detailsCard: {
     backgroundColor: lightColors.surface,
-    marginTop: spacing.md,              // Spacer(8.dp)
-    padding: spacing.xxl,               // .padding(24.dp)
+    marginTop: spacing.md,
+    padding: spacing.xxl,
   },
-
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   detailLabel: {
-    fontSize: 14,                        // 14.sp
-    color: lightColors.textSecondary,    // textSecondary
+    fontSize: 14,
+    color: lightColors.textSecondary,
   },
-
   detailValue: {
-    fontSize: 14,                        // 14.sp
-    fontWeight: '500',                   // FontWeight.Medium
+    fontSize: 14,
+    fontWeight: '500',
     color: lightColors.onSurface,
   },
-
-  // HorizontalDivider(padding vertical=12.dp, outlineVariant)
   divider: {
     height: 1,
     backgroundColor: lightColors.outlineVariant,
-    marginVertical: spacing.lg,          // padding(vertical = 12.dp)
+    marginVertical: spacing.lg,
   },
-
-  // Description / Receipt cards
   sectionCard: {
     backgroundColor: lightColors.surface,
-    marginTop: spacing.md,               // Spacer(8.dp)
-    padding: spacing.xxl,               // .padding(24.dp)
+    marginTop: spacing.md,
+    padding: spacing.xxl,
   },
-
   sectionTitle: {
-    fontSize: 16,                        // 16.sp
-    fontWeight: '700',                   // FontWeight.Bold
+    fontSize: 16,
+    fontWeight: '700',
     color: lightColors.onSurface,
-    marginBottom: spacing.md,            // Spacer(8.dp)
+    marginBottom: spacing.md,
   },
-
   descriptionText: {
-    fontSize: 14,                        // 14.sp
+    fontSize: 14,
     color: lightColors.textSecondary,
-    lineHeight: 22,                      // 22.sp
+    lineHeight: 22,
   },
-
-  // AsyncImage(crop, fillMaxWidth, height=220, clip=12.dp)
   receiptImage: {
     width: '100%',
     height: 220,
-    borderRadius: borderRadii.lg,        // RoundedCornerShape(12.dp)
-    marginTop: spacing.lg,              // Spacer(12.dp)
+    borderRadius: borderRadii.lg,
+    marginTop: spacing.lg,
   },
 });
